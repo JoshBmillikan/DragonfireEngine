@@ -21,7 +21,7 @@ public:
     template<class T, typename ...Args>
     requires std::is_base_of_v<Service, T>
     static void init(Args... args) {
-        auto ptr = new T(std::forward(args...));
+        auto ptr = new T(args...);
         ptr->install();
     }
 

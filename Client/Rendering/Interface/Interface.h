@@ -4,12 +4,12 @@
 
 #pragma once
 #include <SDL.h>
+#include <Service.h>
 
 namespace dragonfire::rendering {
-    struct IRenderEngine {
+    struct IRenderEngine : public Service {
 
-        virtual ~IRenderEngine() = default;
     };
-    extern IRenderEngine* initRendering(SDL_Window* window);
+    extern void initRendering(SDL_Window* window);
     extern const SDL_WindowFlags RequiredFlags;
 }

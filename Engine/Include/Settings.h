@@ -26,7 +26,7 @@ public:
     EXPORTED Settings();
 
     template<typename T>
-    T get(const std::string& str) {
+    [[nodiscard]] T get(const std::string& str) {
         auto variant = configMap.at(str);
         if constexpr (std::is_same_v<T, bool>)
             return std::get<bool>(variant);
@@ -37,6 +37,11 @@ public:
         else if constexpr (std::is_same_v<std::string&, T>)
             return std::get<std::string>(variant);
         else return std::get<T>(variant);
+    }
+
+    template<typename T>
+    [[nodiscard]] std::vector<T>& getVec(const std::string& str) {
+        return std::get<std::vector<T>>(configMap.at(str));
     }
 
     template<typename T>

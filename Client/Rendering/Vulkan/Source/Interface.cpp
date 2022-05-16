@@ -11,6 +11,8 @@
 #endif
 
 namespace dragonfire::rendering {
-IRenderEngine* initRendering(SDL_Window* window) { return new RenderingEngine(window, VALIDATION); }
+void initRendering(SDL_Window* window) {
+    Service::init<RenderingEngine>(window, VALIDATION);
+}
 const SDL_WindowFlags RequiredFlags = SDL_WINDOW_VULKAN;
 }   // namespace dragonfire::rendering

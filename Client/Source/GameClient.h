@@ -11,7 +11,6 @@ namespace dragonfire {
 
 class GameClient : public Game {
     std::unique_ptr<SDL_Window, void(*)(SDL_Window*)> window;
-    std::unique_ptr<rendering::IRenderEngine> renderingEngine;
 public:
     GameClient(int argc, char** argv);
 protected:
