@@ -13,3 +13,7 @@
 #else
     #define EXPORTED
 #endif
+
+#ifndef APP_NAME
+#define APP_NAME "Dragonfire Engine"
+#endif

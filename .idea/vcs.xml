@@ -2,5 +2,12 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/Entt" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/Glm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/Re2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/SDL" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/Spdlog" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/Toml++" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/Vma" vcs="Git" />
   </component>
 </project>

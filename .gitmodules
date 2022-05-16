@@ -1,0 +1,22 @@
+[submodule "ThirdParty/SDL"]
+	path = ThirdParty/SDL
+	url = https://github.com/libsdl-org/SDL.git
+	branch = 2.0.22
+[submodule "ThirdParty/Entt"]
+	path = ThirdParty/Entt
+	url = https://github.com/skypjack/entt.git
+[submodule "ThirdParty/Spdlog"]
+	path = ThirdParty/Spdlog
+	url = https://github.com/gabime/spdlog.git
+[submodule "ThirdParty/Vma"]
+	path = ThirdParty/Vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "ThirdParty/Glm"]
+	path = ThirdParty/Glm
+	url = https://github.com/g-truc/glm.git
+[submodule "ThirdParty/Toml++"]
+	path = ThirdParty/Toml++
+	url = https://github.com/marzer/tomlplusplus.git
+[submodule "ThirdParty/Re2"]
+	path = ThirdParty/Re2
+	url = https://github.com/google/re2.git

@@ -5,8 +5,8 @@
 #include "Service.h"
 using namespace dragonfire;
 
-EXPORTED std::vector<Service*> services;
+EXPORTED std::vector<Service*> Service::services;
 
 EXPORTED void Service::destroyServices() noexcept {
-    std::for_each(::services.rbegin(), ::services.rend(), [](auto ptr) { delete ptr; });
+    std::for_each(services.rbegin(), services.rend(), [](auto ptr) { delete ptr; });
 }

@@ -1,6 +1,6 @@
 
-add_library(DragonfireEngine SHARED Include/Engine.h Source/Engine.cpp Source/Service.cpp Include/Service.h)
-target_include_directories(DragonfireEngine PUBLIC Include)
-target_compile_definitions(DragonfireEngine PRIVATE _DLL)
-
-target_precompile_headers(DragonfireEngine PUBLIC <vector> <algorithm> <memory> <stdexcept>)
+add_library(Engine SHARED Include/Engine.h Source/Engine.cpp Source/Service.cpp Include/Service.h Source/Game.cpp Include/Game.h Source/FileLocator.cpp Include/FileLocator.h Source/Settings.cpp Include/Settings.h)
+target_include_directories(Engine PUBLIC Include)
+target_compile_definitions(Engine PRIVATE _DLL)
+target_link_libraries(Engine PUBLIC spdlog::spdlog glm::glm SDL2::SDL2 tomlplusplus::tomlplusplus re2::re2)
+target_precompile_headers(Engine PUBLIC <vector> <algorithm> <memory> <stdexcept> <spdlog/spdlog.h> <tuple> <glm/glm.hpp> <cstdint> <string>)
