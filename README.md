@@ -7,4 +7,7 @@ All dependancies aside from the vulkan sdk are included as git submodules and wi
 
 1. Install the [Vulkan SDK](https://vulkan.lunarg.com/)
 2. clone this repo
-3. build with cmake
+```
+git clone --recursive https://github.com/JoshBmillikan/DragonfireEngine.git
+```
+4. build with cmake
