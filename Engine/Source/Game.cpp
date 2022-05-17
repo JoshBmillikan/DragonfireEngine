@@ -17,7 +17,7 @@
 
 using namespace dragonfire;
 using namespace std::chrono;
-EXPORTED void Game::run() {
+void Game::run() {
     auto time = steady_clock::now();
     while (running) {
         double delta = duration_cast<duration<double>>(steady_clock::now() - time).count();
@@ -61,7 +61,7 @@ static void parseCLI(int argc, char** argv) {
     }
 }
 
-EXPORTED Game::Game(int argc, char** argv, spdlog::level::level_enum level) {
+Game::Game(int argc, char** argv, spdlog::level::level_enum level) {
     initLogging(level);
     Service::init<FileLocator>();
     auto& fs = Service::get<FileLocator>();
@@ -69,7 +69,7 @@ EXPORTED Game::Game(int argc, char** argv, spdlog::level::level_enum level) {
     parseCLI(argc,argv);
 }
 
-EXPORTED Game::~Game() noexcept {
+Game::~Game() noexcept {
     Service::destroyServices();
     spdlog::info("Game shutdown");
     spdlog::shutdown();

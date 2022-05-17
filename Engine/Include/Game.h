@@ -7,16 +7,16 @@
 
 namespace dragonfire {
 
-class Game {
+class EXPORTED Game {
 protected:
     bool running = true;
     virtual void mainLoop(double deltaTime) = 0;
 public:
-    EXPORTED Game(int argc, char** argv, spdlog::level::level_enum level = spdlog::level::info);
+    Game(int argc, char** argv, spdlog::level::level_enum level = spdlog::level::info);
 
-    EXPORTED void run();
+    void run();
 
-    EXPORTED virtual ~Game() noexcept;
+    virtual ~Game() noexcept;
 };
 
 }   // namespace dragonfire

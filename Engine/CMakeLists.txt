@@ -1,5 +1,5 @@
 
-add_library(Engine SHARED Include/Engine.h Source/Engine.cpp Source/Service.cpp Include/Service.h Source/Game.cpp Include/Game.h Source/FileLocator.cpp Include/FileLocator.h Source/Settings.cpp Include/Settings.h)
+add_library(Engine SHARED Include/Engine.h Source/Engine.cpp Include/Service.h Source/Game.cpp Include/Game.h Source/FileLocator.cpp Include/FileLocator.h Source/Settings.cpp Include/Settings.h)
 target_include_directories(Engine PUBLIC Include)
 target_compile_definitions(Engine PRIVATE _DLL)
 target_link_libraries(Engine PUBLIC spdlog::spdlog glm::glm SDL2::SDL2 tomlplusplus::tomlplusplus re2::re2)

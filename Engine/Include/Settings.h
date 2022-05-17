@@ -11,7 +11,7 @@
 #include <filesystem>
 
 namespace dragonfire {
-class Settings : public Service {
+class EXPORTED Settings : public Service {
     typedef std::variant<
             int64_t,
             std::string,
@@ -22,8 +22,10 @@ class Settings : public Service {
             std::vector<double>,
             std::vector<bool>>
             ConfigTypes;
+    void loadConfigDir(const std::filesystem::path& path);
+    std::unordered_map<std::string, ConfigTypes> configMap;
 public:
-    EXPORTED Settings();
+    Settings();
 
     template<typename T>
     [[nodiscard]] T get(const std::string& str) {
@@ -49,12 +51,14 @@ public:
         return get<T>(str);
     }
 
-    inline void insert(const std::string& str, ConfigTypes&& val) {
+    inline void insert(std::string str, ConfigTypes&& val) {
+        std::transform(str.begin(),str.end(),str.begin(),::tolower);
         configMap[str] = std::move(val);
     }
 
-private:
-    void loadConfigDir(const std::filesystem::path& path);
-    std::unordered_map<std::string, ConfigTypes> configMap;
+    inline void insert(std::string str, const ConfigTypes& val) {
+        std::transform(str.begin(),str.end(),str.begin(),::tolower);
+        configMap[str] = val;
+    }
 };
 }   // namespace dragonfire
