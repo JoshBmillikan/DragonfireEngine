@@ -11,6 +11,7 @@ class EXPORTED Game {
 protected:
     bool running = true;
     virtual void mainLoop(double deltaTime) = 0;
+
 public:
     Game(int argc, char** argv, spdlog::level::level_enum level = spdlog::level::info);
 

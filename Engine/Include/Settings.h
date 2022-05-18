@@ -5,10 +5,10 @@
 #pragma once
 #include "Engine.h"
 #include "Service.h"
+#include <filesystem>
 #include <unordered_map>
 #include <utility>
 #include <variant>
-#include <filesystem>
 
 namespace dragonfire {
 class EXPORTED Settings : public Service {
@@ -24,6 +24,7 @@ class EXPORTED Settings : public Service {
             ConfigTypes;
     void loadConfigDir(const std::filesystem::path& path);
     std::unordered_map<std::string, ConfigTypes> configMap;
+
 public:
     Settings();
 
@@ -38,7 +39,8 @@ public:
             return static_cast<T>(std::get<double>(variant));
         else if constexpr (std::is_same_v<std::string&, T>)
             return std::get<std::string>(variant);
-        else return std::get<T>(variant);
+        else
+            return std::get<T>(variant);
     }
 
     template<typename T>
@@ -52,12 +54,13 @@ public:
     }
 
     inline void insert(std::string str, ConfigTypes&& val) {
-        std::transform(str.begin(),str.end(),str.begin(),::tolower);
+        std::transform(str.begin(), str.end(), str.begin(), ::tolower);
         configMap[str] = std::move(val);
     }
 
     inline void insert(std::string str, const ConfigTypes& val) {
-        std::transform(str.begin(),str.end(),str.begin(),::tolower);
+        std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+        spdlog::info("Loaded config option: {}", str);
         configMap[str] = val;
     }
 };

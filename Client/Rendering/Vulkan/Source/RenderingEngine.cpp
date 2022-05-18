@@ -6,6 +6,11 @@
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 using namespace dragonfire::rendering;
 
+RenderingEngine::~RenderingEngine() {
+    device.destroy();
+    instance.destroy();
+}
+
 VKAPI_ATTR VkBool32 VKAPI_CALL RenderingEngine::debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,

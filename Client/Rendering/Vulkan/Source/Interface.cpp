@@ -5,14 +5,12 @@
 #include <Interface.h>
 
 #ifndef NDEBUG
-#define VALIDATION true
+    #define VALIDATION true
 #else
-#define VALIDATION false
+    #define VALIDATION false
 #endif
 
 namespace dragonfire::rendering {
-void initRendering(SDL_Window* window) {
-    Service::init<RenderingEngine>(window, VALIDATION);
-}
+void initRendering(SDL_Window* window) { Service::init<RenderingEngine>(window, VALIDATION); }
 const SDL_WindowFlags RequiredFlags = SDL_WINDOW_VULKAN;
 }   // namespace dragonfire::rendering

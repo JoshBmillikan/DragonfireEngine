@@ -34,7 +34,7 @@ template<typename T>
 static std::vector<T> parseArray(const toml::array& array) {
     std::vector<T> vec;
     vec.reserve(array.size());
-    for(auto& element : array) {
+    for (auto& element : array) {
         vec.push_back(element.as<T>()->get());
     }
 
@@ -45,30 +45,30 @@ static void parseNodes(const toml::table& table, ConfigOptions& settings, const 
     if (depth > 1000)
         throw std::runtime_error("Recursion depth exceeded");
 
-    for (const auto& entry : table) {
+    for (auto [key, val] : table) {
         std::string name(str);
         name.append(".");
-        name.append(entry.first.str());
+        name.append(key.str());
 
-        if (entry.second.is_table())
-            parseNodes(*entry.second.as_table(), settings, name, depth + 1);
+        if (val.is_table())
+            parseNodes(*val.as_table(), settings, name, depth + 1);
 
-        else if (entry.second.is_boolean())
-            settings.emplace_back(name, entry.second.as_boolean()->get());
+        else if (val.is_boolean())
+            settings.emplace_back(name, val.as_boolean()->get());
 
-        else if (entry.second.is_floating_point())
-            settings.emplace_back(name, entry.second.as_floating_point()->get());
+        else if (val.is_floating_point())
+            settings.emplace_back(name, val.as_floating_point()->get());
 
-        else if (entry.second.is_integer())
-            settings.emplace_back(name, entry.second.as_integer()->get());
+        else if (val.is_integer())
+            settings.emplace_back(name, val.as_integer()->get());
 
-        else if (entry.second.is_string())
-            settings.emplace_back(name, entry.second.as_string()->get());
+        else if (val.is_string())
+            settings.emplace_back(name, val.as_string()->get());
 
-        else if (entry.second.is_array()) {
-            if (!entry.second.is_homogeneous())
+        else if (val.is_array()) {
+            if (!val.is_homogeneous())
                 throw std::runtime_error("Non-homogenous array are not supported");
-            const auto& array = *entry.second.as_array();
+            const auto& array = *val.as_array();
 
             if (array[0].is_boolean())
                 settings.emplace_back(name, parseArray<bool>(array));
@@ -76,12 +76,14 @@ static void parseNodes(const toml::table& table, ConfigOptions& settings, const 
             else if (array[0].is_floating_point())
                 settings.emplace_back(name, parseArray<double>(array));
 
-            else if(array[0].is_integer())
-                    settings.emplace_back(name, parseArray<int64_t>(array));
+            else if (array[0].is_integer())
+                settings.emplace_back(name, parseArray<int64_t>(array));
 
             else if (array[0].is_string())
                 settings.emplace_back(name, parseArray<std::string>(array));
         }
+        else
+            throw std::runtime_error("Unsupported config entry " + std::string(key.str()));
     }
 }
 
@@ -89,11 +91,11 @@ void Settings::loadConfigDir(const fs::path& path) {
     for (const auto& entry : fs::directory_iterator(path)) {
         if (entry.is_regular_file() and entry.path().has_extension() and entry.path().extension() == ".toml") {
             try {
-                toml::table table = toml::parse_file(path.string());
+                toml::table table = toml::parse_file(entry.path().string());
                 // Settings are first read into a vector, then copied to the map after parsing the rest of the file
                 // This means an error in parsing will stop the map from being modified at all, partially valid files will be ignored
                 ConfigOptions options;
-                parseNodes(table, options, path.stem().string());
+                parseNodes(table, options, entry.path().stem().string());
                 for (const auto& option : options) {
                     const auto [key, val] = option;
                     insert(key, val);

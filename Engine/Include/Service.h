@@ -39,6 +39,7 @@ public:
 
     static void destroyServices() noexcept {
         std::for_each(services.rbegin(), services.rend(), [](auto ptr) { delete ptr; });
+        services.clear();
     }
 
 private:

@@ -1,9 +1,9 @@
 //
 // Created by Josh on 5/14/2022.
 //
+#include <GameClient.h>
 #include <SDL.h>
 #include <SDL_main.h>
-#include <GameClient.h>
 
 using namespace dragonfire;
 

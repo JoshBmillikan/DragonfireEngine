@@ -7,9 +7,7 @@
 #include <Service.h>
 
 namespace dragonfire::rendering {
-    struct IRenderEngine : public Service {
-
-    };
-    extern void initRendering(SDL_Window* window);
-    extern const SDL_WindowFlags RequiredFlags;
-}
+struct IRenderEngine : public Service {};
+extern void initRendering(SDL_Window* window);
+extern const SDL_WindowFlags RequiredFlags;
+}   // namespace dragonfire::rendering

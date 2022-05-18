@@ -3,17 +3,17 @@
 //
 
 #include "Game.h"
-#include <chrono>
-#include <spdlog/spdlog.h>
-#include <spdlog/async.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <filesystem>
-#include <Service.h>
-#include <SDL.h>
 #include "FileLocator.h"
 #include "Settings.h"
 #include "re2/re2.h"
+#include <SDL.h>
+#include <Service.h>
+#include <chrono>
+#include <filesystem>
+#include <spdlog/async.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 
 using namespace dragonfire;
 using namespace std::chrono;
@@ -51,22 +51,20 @@ static void parseCLI(int argc, char** argv) {
     // matches CLI args, eg --foo or --foo=bar
     RE2 regex(R"(^-?-([A-Za-z_0-9\.]+) *= *([-_A-Za-z0-9\.]+) *$|--([A-Za-z_0-9\.]+) *$)");
     auto& settings = Service::get<Settings>();
-    for(int i=0;i<argc;i++) {
+    for (int i = 0; i < argc; i++) {
         re2::StringPiece name, value;
         std::string arg(argv[i]);
-        if (RE2::FullMatch(arg,regex,&name,&value)) {
-
-        } else if (RE2::FullMatch(arg,regex,&name))
-            settings.insert(name.as_string(),true);
+        if (RE2::FullMatch(arg, regex, &name, &value)) {}
+        else if (RE2::FullMatch(arg, regex, &name))
+            settings.insert(name.as_string(), true);
     }
 }
 
 Game::Game(int argc, char** argv, spdlog::level::level_enum level) {
     initLogging(level);
     Service::init<FileLocator>();
-    auto& fs = Service::get<FileLocator>();
     Service::init<Settings>();
-    parseCLI(argc,argv);
+    parseCLI(argc, argv);
 }
 
 Game::~Game() noexcept {

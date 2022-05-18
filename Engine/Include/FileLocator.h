@@ -12,4 +12,4 @@ public:
     EXPORTED FileLocator();
     const std::filesystem::path baseDir, assetDir, dataDir, configDir;
 };
-}
+}   // namespace dragonfire

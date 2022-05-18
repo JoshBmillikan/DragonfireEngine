@@ -15,7 +15,8 @@ static fs::path getDataDir() {
 }
 
 EXPORTED dragonfire::FileLocator::FileLocator()
-    : baseDir(fs::current_path().parent_path()), assetDir(fs::path(baseDir).append("Assets")), dataDir(getDataDir()), configDir(fs::path(dataDir).append("Config")) {
+    : baseDir(fs::current_path().parent_path()), assetDir(fs::path(baseDir).append("Assets")), dataDir(getDataDir()),
+      configDir(fs::path(dataDir).append("Config")) {
     create_directories(dataDir);
     create_directories(configDir);
     create_directories(assetDir);
