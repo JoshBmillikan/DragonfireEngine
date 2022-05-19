@@ -3,13 +3,11 @@
 //
 
 #pragma once
-#include <entt/entt.hpp>
 #include "Service.h"
+#include <entt/entt.hpp>
 
 namespace dragonfire {
 
-class EXPORTED World : public Service, public entt::registry {
-
-};
+class EXPORTED World : public Service, public entt::registry {};
 
 }   // namespace dragonfire

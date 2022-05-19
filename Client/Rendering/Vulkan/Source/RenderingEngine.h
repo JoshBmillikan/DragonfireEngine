@@ -13,8 +13,8 @@ public:
 
     RenderingEngine(RenderingEngine&& other) = delete;
     RenderingEngine(RenderingEngine& other) = delete;
-    RenderingEngine& operator = (RenderingEngine&& other) = delete;
-    RenderingEngine& operator = (RenderingEngine& other) = delete;
+    RenderingEngine& operator=(RenderingEngine&& other) = delete;
+    RenderingEngine& operator=(RenderingEngine& other) = delete;
 
 private:
     /// callback to log debug messages from the validation layers
@@ -22,7 +22,8 @@ private:
             VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
             [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-            void* pUserData) noexcept;
+            void* pUserData
+    ) noexcept;
 
 private:
     uint64_t frameCount = 0;

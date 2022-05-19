@@ -14,7 +14,9 @@ void GameClient::mainLoop(double deltaTime) {
     auto& renderingEngine = Service::get<rendering::IRenderEngine>();
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
-            case SDL_QUIT: running = false; break;
+            case SDL_QUIT:
+                running = false;
+                break;
         }
         //todo events
     }
@@ -38,7 +40,7 @@ static SDL_Window* createWindow() {
     else if (windowMode == "borderless")
         flags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_MAXIMIZED;
     else {
-        if  (windowMode != "windowed")
+        if (windowMode != "windowed")
             spdlog::error("Unknown window mode {}, defaulting to windowed", windowMode);
         // Disable bypassing the compositor when windowed, as it can cause bugs with kde
         SDL_SetHint(SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR, "0");
@@ -51,7 +53,8 @@ static SDL_Window* createWindow() {
             SDL_WINDOWPOS_CENTERED,
             (int) resolution[0],
             (int) resolution[1],
-            flags);
+            flags
+    );
 
     if (window)
         return window;

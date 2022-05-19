@@ -15,7 +15,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL RenderingEngine::debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         [[maybe_unused]] VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        [[maybe_unused]] void* pUserData) noexcept {
+        [[maybe_unused]] void* pUserData
+) noexcept {
     switch (messageSeverity) {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
             spdlog::error("Validation Layer: {}", pCallbackData->pMessage);

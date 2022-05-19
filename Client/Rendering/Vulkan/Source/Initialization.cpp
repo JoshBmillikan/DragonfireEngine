@@ -5,18 +5,17 @@
 #include <Engine.h>
 #include <SDL_vulkan.h>
 
-constexpr size_t ARRAY_SIZE = 16;
-
-static vk::Instance createInstance(
-        SDL_Window* window,
-        std::vector<const char*>& layers,
-        PFN_vkDebugUtilsMessengerCallbackEXT debugCallback);
+static vk::Instance createInstance(SDL_Window* window, PFN_vkDebugUtilsMessengerCallbackEXT debugCallback);
 
 static vk::PhysicalDevice getPhysicalDevice(
         vk::Instance instance,
         vk::SurfaceKHR surface,
-        const std::vector<const char*>& deviceExtensions);
+        const std::vector<const char*>& deviceExtensions
+);
+
 static vk::SurfaceKHR createSurface(SDL_Window* window, vk::Instance instance);
+
+static vk::Device createDevice(vk::PhysicalDevice physicalDevice, const std::vector<const char*>& extensions);
 
 inline static std::vector<const char*> getLayers(bool validation) {
     std::vector<const char*> layers{};
@@ -27,47 +26,41 @@ inline static std::vector<const char*> getLayers(bool validation) {
 
 dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool validation) {
     assert(window);
-    auto layers = getLayers(validation);
-    instance = createInstance(window, layers, validation ? RenderingEngine::debugCallback : nullptr);
+    instance = createInstance(window, validation ? RenderingEngine::debugCallback : nullptr);
     surface = createSurface(window, instance);
 
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     physicalDevice = getPhysicalDevice(instance, surface, deviceExtensions);
-
     spdlog::info("Using GPU {}", physicalDevice.getProperties().deviceName);
+    device = createDevice(physicalDevice, deviceExtensions);
 }
 
-static bool checkExtensionSupport(vk::PhysicalDevice device, const char* ext) {
-    uint32_t propCount;
+static vk::Device createDevice(vk::PhysicalDevice physicalDevice, const std::vector<const char*>& extensions) {
+    vk::DeviceCreateInfo createInfo{
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data()};
 
-    vk::resultCheck(
-            device.enumerateDeviceExtensionProperties(nullptr, &propCount, nullptr),
-            "Failed to get device extension count");
-    auto* extensionProps = (vk::ExtensionProperties*) alloca(propCount);
-
-    vk::resultCheck(
-            device.enumerateDeviceExtensionProperties(nullptr, &propCount, extensionProps),
-            "Failed to get device extensions");
-
-    for (uint32_t i = 0; i < propCount; i++) {
-        if (strcmp(extensionProps->extensionName, ext) == 0)
-            return true;
-    }
-    return false;
+    auto device = physicalDevice.createDevice(createInfo);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
+    return device;
 }
 
 static bool isValidDevice(
         vk::PhysicalDevice device,
         vk::SurfaceKHR surface,
-        const std::vector<const char*>& requestedExtensions) {
+        const std::vector<const char*>& requestedExtensions
+) {
     auto props = device.getProperties();
     auto features = device.getFeatures();
+    auto extProps = device.enumerateDeviceExtensionProperties(nullptr);
 
     // check if device supports all requested extensions
-    for (const auto ext : requestedExtensions) {
-        if (!checkExtensionSupport(device, ext))
-            return false;
-    }
+    if (!std::ranges::all_of(requestedExtensions, [&](const auto& ext) {
+            return std::ranges::any_of(extProps, [&](const auto& prop) {
+                return strcmp(prop.extensionName, ext) == 0;
+            });
+        }))
+        return false;
 
     return true;   //todo check other stuff
 }
@@ -75,15 +68,18 @@ static bool isValidDevice(
 static vk::PhysicalDevice getPhysicalDevice(
         vk::Instance instance,
         vk::SurfaceKHR surface,
-        const std::vector<const char*>& deviceExtensions) {
-
+        const std::vector<const char*>& deviceExtensions
+) {
     auto devices = instance.enumeratePhysicalDevices();
+    for (const char* ext : deviceExtensions)
+        spdlog::info("Loaded device extension {}", ext);
+
     if (devices.empty())
         throw std::runtime_error("No GPU found");
 
     auto device = std::find_if(devices.begin(), devices.end(), [&](const auto device) {
         return isValidDevice(device, surface, deviceExtensions)
-        and device.getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
+               and device.getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
     });
 
     // find a valid integrated gpu if no discrete gpu was found
@@ -91,13 +87,16 @@ static vk::PhysicalDevice getPhysicalDevice(
         auto integrated = std::find_if(devices.begin(), devices.end(), [&](const auto device) {
             return isValidDevice(device, surface, deviceExtensions);
         });
+
         if (integrated != devices.end()) {
             spdlog::warn("No discrete GPU found, falling back to integrated gpu");
             return *integrated;
         }
+        // If no suitable gpu was found at all
+        throw std::runtime_error("No suitable GPU available");
     }
 
-    throw std::runtime_error("No suitable GPU available");
+    return *device;
 }
 
 static std::vector<const char*> getInstanceExtensions(SDL_Window* window, bool validation) {
@@ -129,10 +128,7 @@ static vk::DebugUtilsMessengerCreateInfoEXT getDebugCreateInfo(PFN_vkDebugUtilsM
             .pfnUserCallback = callback};
 }
 
-static vk::Instance createInstance(
-        SDL_Window* window,
-        std::vector<const char*>& layers,
-        PFN_vkDebugUtilsMessengerCallbackEXT debugCallback = nullptr) {
+static vk::Instance createInstance(SDL_Window* window, PFN_vkDebugUtilsMessengerCallbackEXT debugCallback = nullptr) {
     vk::DynamicLoader dl;
     VULKAN_HPP_DEFAULT_DISPATCHER.init(dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr"));
     vk::ApplicationInfo appInfo{
@@ -146,6 +142,7 @@ static vk::Instance createInstance(
     auto extensions = getInstanceExtensions(window, debugCallback != nullptr);
     for (const auto ext : extensions)
         spdlog::info("Loaded instance extension: {}", ext);
+    auto layers = getLayers(debugCallback != nullptr);
     for (const auto layer : layers)
         spdlog::info("Loaded layer: {}", layer);
 
@@ -172,7 +169,8 @@ static vk::Instance createInstance(
             "Vulkan version: {:d}.{:d}.{:d} loaded",
             VK_API_VERSION_MAJOR(vkVersion),
             VK_API_VERSION_MINOR(vkVersion),
-            VK_API_VERSION_PATCH(vkVersion));
+            VK_API_VERSION_PATCH(vkVersion)
+    );
 
     return instance;
 }

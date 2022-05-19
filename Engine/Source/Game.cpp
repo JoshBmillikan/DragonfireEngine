@@ -30,14 +30,16 @@ static void initLogging(spdlog::level::level_enum level) {
     using namespace spdlog;
     auto stdoutSink = std::make_shared<sinks::stdout_color_sink_mt>();
     auto fileSink = std::make_shared<sinks::basic_file_sink_mt>(
-            std::filesystem::temp_directory_path().append("Dragonfire/EngineLog.txt").string());
+            std::filesystem::temp_directory_path().append("Dragonfire/EngineLog.txt").string()
+    );
     std::vector<sink_ptr> sinks{stdoutSink, fileSink};
     auto logger = std::make_shared<async_logger>(
             "DragonfireEngineLog",
             sinks.begin(),
             sinks.end(),
             thread_pool(),
-            async_overflow_policy::block);
+            async_overflow_policy::block
+    );
     register_logger(logger);
     set_level(level);
     info("Logging started");
