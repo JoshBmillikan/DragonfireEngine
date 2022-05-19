@@ -6,6 +6,14 @@
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 using namespace dragonfire::rendering;
 
+void RenderingEngine::beginRendering() noexcept {}
+void RenderingEngine::render() noexcept {}
+void RenderingEngine::endRendering() noexcept {}
+
+void RenderingEngine::renderThread(const std::stop_token& token) noexcept {
+
+}
+
 RenderingEngine::~RenderingEngine() {
     device.destroy();
     instance.destroy();

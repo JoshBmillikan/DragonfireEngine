@@ -15,14 +15,26 @@ static vk::PhysicalDevice getPhysicalDevice(
 
 static vk::SurfaceKHR createSurface(SDL_Window* window, vk::Instance instance);
 
-static vk::Device createDevice(vk::PhysicalDevice physicalDevice, const std::vector<const char*>& extensions);
-
 inline static std::vector<const char*> getLayers(bool validation) {
     std::vector<const char*> layers{};
     if (validation)
         layers.push_back("VK_LAYER_KHRONOS_validation");
     return layers;
 }
+
+struct QueueFamilies {
+    uint32_t graphicsIndex, presentationIndex;
+
+    QueueFamilies(vk::PhysicalDevice device, vk::SurfaceKHR surface);
+
+    [[nodiscard]] inline bool isUnified() const noexcept { return graphicsIndex == presentationIndex; }
+};
+
+static vk::Device createDevice(
+        vk::PhysicalDevice physicalDevice,
+        const std::vector<const char*>& extensions,
+        const QueueFamilies& queueFamilies
+);
 
 dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool validation) {
     assert(window);
@@ -32,13 +44,62 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     physicalDevice = getPhysicalDevice(instance, surface, deviceExtensions);
     spdlog::info("Using GPU {}", physicalDevice.getProperties().deviceName);
-    device = createDevice(physicalDevice, deviceExtensions);
+    QueueFamilies queueFamilies(physicalDevice, surface);
+    device = createDevice(physicalDevice, deviceExtensions, queueFamilies);
+    graphicsQueue = device.getQueue(queueFamilies.graphicsIndex, 0);
+    presentationQueue = device.getQueue(queueFamilies.presentationIndex, 0);
+
+    auto threadCount = std::max(std::thread::hardware_concurrency() / 2, 1u);
+    renderThreads.reserve(threadCount);
+    for (auto i=0;i<threadCount;i++)
+        renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this));
 }
 
-static vk::Device createDevice(vk::PhysicalDevice physicalDevice, const std::vector<const char*>& extensions) {
+QueueFamilies::QueueFamilies(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
+    auto props = device.getQueueFamilyProperties();
+    bool foundGraphics = false, foundPresent = false;
+    for (auto i = 0; i < props.size(); i++) {
+        if (props[i].queueFlags & vk::QueueFlagBits::eGraphics) {
+            graphicsIndex = i;
+            foundGraphics = true;
+        }
+
+        if (device.getSurfaceSupportKHR(i, surface)) {
+            presentationIndex = i;
+            foundPresent = true;
+        }
+
+        if (foundGraphics && foundPresent)
+            break;
+    }
+    if (!foundGraphics)
+        throw std::runtime_error("No graphics queue found");
+    if (!foundPresent)
+        throw std::runtime_error("No presentation queue found");
+}
+
+static vk::Device createDevice(
+        vk::PhysicalDevice physicalDevice,
+        const std::vector<const char*>& extensions,
+        const QueueFamilies& queueFamilies
+) {
+    vk::DeviceQueueCreateInfo queueInfos[2];
+    const float priority[2] = {1, 1};
+
+    queueInfos[0].queueCount = 1;
+    queueInfos[0].pQueuePriorities = priority;
+    queueInfos[0].queueFamilyIndex = queueFamilies.graphicsIndex;
+    if (!queueFamilies.isUnified()) {
+        queueInfos[1] = queueInfos[0];
+        queueInfos[1].queueFamilyIndex = queueFamilies.presentationIndex;
+    }
+
     vk::DeviceCreateInfo createInfo{
+            .queueCreateInfoCount = queueFamilies.isUnified() ? 1u : 2u,
+            .pQueueCreateInfos = queueInfos,
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-            .ppEnabledExtensionNames = extensions.data()};
+            .ppEnabledExtensionNames = extensions.data(),
+    };
 
     auto device = physicalDevice.createDevice(createInfo);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
@@ -61,6 +122,13 @@ static bool isValidDevice(
             });
         }))
         return false;
+
+    try {
+        QueueFamilies(device, surface);
+    }
+    catch (const std::runtime_error& e) {
+        return false;
+    }
 
     return true;   //todo check other stuff
 }
