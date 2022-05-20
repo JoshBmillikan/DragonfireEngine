@@ -5,6 +5,8 @@
 #pragma once
 #include <Interface.h>
 #include <thread>
+#include "Mesh.h"
+#include "Material.h"
 
 namespace dragonfire::rendering {
 class RenderingEngine final : public IRenderEngine {
@@ -12,8 +14,8 @@ public:
     RenderingEngine(SDL_Window* window, bool validation);
     ~RenderingEngine() override;
 
-    void beginRendering() noexcept override;
-    void render() noexcept override;
+    void beginRendering(const glm::mat4& view, const glm::mat4& projection) noexcept override;
+    void render(BaseMesh* meshPtr, IMaterial* materialPtr, const glm::mat4& transform) noexcept override;
     void endRendering() noexcept override;
 
     RenderingEngine(RenderingEngine&& other) = delete;

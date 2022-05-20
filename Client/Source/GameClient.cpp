@@ -4,6 +4,7 @@
 
 #include "GameClient.h"
 #include "Settings.h"
+#include <Interface.h>
 
 using namespace dragonfire;
 

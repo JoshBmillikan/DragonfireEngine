@@ -4,6 +4,7 @@
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/Entt" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/Glm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/Json" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/Re2" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/SDL" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/Spdlog" vcs="Git" />

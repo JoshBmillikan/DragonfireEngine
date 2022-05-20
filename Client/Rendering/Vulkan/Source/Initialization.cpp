@@ -1,6 +1,7 @@
 //
 // Created by Josh on 5/14/2022.
 //
+#include "Allocation.h"
 #include "RenderingEngine.h"
 #include <Engine.h>
 #include <SDL_vulkan.h>
@@ -46,12 +47,14 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     spdlog::info("Using GPU {}", physicalDevice.getProperties().deviceName);
     QueueFamilies queueFamilies(physicalDevice, surface);
     device = createDevice(physicalDevice, deviceExtensions, queueFamilies);
+    Allocation::initAllocator(instance, physicalDevice, device);
+
     graphicsQueue = device.getQueue(queueFamilies.graphicsIndex, 0);
     presentationQueue = device.getQueue(queueFamilies.presentationIndex, 0);
 
     auto threadCount = std::max(std::thread::hardware_concurrency() / 2, 1u);
     renderThreads.reserve(threadCount);
-    for (auto i=0;i<threadCount;i++)
+    for (auto i = 0; i < threadCount; i++)
         renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this));
 }
 
@@ -168,7 +171,7 @@ static vk::PhysicalDevice getPhysicalDevice(
 }
 
 static std::vector<const char*> getInstanceExtensions(SDL_Window* window, bool validation) {
-    std::vector<const char*> extensions{};
+    std::vector<const char*> extensions;
     unsigned int count;
     SDL_Vulkan_GetInstanceExtensions(window, &count, nullptr);
     extensions.resize(count);

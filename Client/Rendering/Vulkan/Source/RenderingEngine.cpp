@@ -3,19 +3,30 @@
 //
 
 #include "RenderingEngine.h"
+#include "Allocation.h"
+
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 using namespace dragonfire::rendering;
 
-void RenderingEngine::beginRendering() noexcept {}
-void RenderingEngine::render() noexcept {}
-void RenderingEngine::endRendering() noexcept {}
+void RenderingEngine::beginRendering(const glm::mat4& view, const glm::mat4& projection) noexcept {}
+void RenderingEngine::render(BaseMesh* meshPtr, IMaterial* materialPtr, const glm::mat4& transform) noexcept {
+    auto mesh = static_cast<Mesh*>(meshPtr); // NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+    auto material = static_cast<Material*>(materialPtr); // NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+}
+void RenderingEngine::endRendering() noexcept {
+    frameCount++;
+}
 
 void RenderingEngine::renderThread(const std::stop_token& token) noexcept {
 
 }
 
 RenderingEngine::~RenderingEngine() {
+    renderThreads.clear();
+    vmaDestroyAllocator(Allocation::allocator);
+    Allocation::allocator = nullptr;
     device.destroy();
+    instance.destroy(surface);
     instance.destroy();
 }
 

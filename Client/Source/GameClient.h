@@ -4,7 +4,6 @@
 
 #pragma once
 #include <Game.h>
-#include <Interface.h>
 #include <SDL.h>
 
 namespace dragonfire {

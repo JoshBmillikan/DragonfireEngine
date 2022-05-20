@@ -15,6 +15,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+add_subdirectory(Tools)
 add_subdirectory(ThirdParty)
 add_subdirectory(Engine)
 add_subdirectory(Client)
