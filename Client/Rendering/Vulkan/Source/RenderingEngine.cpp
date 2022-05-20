@@ -23,8 +23,7 @@ void RenderingEngine::renderThread(const std::stop_token& token) noexcept {
 
 RenderingEngine::~RenderingEngine() {
     renderThreads.clear();
-    vmaDestroyAllocator(Allocation::allocator);
-    Allocation::allocator = nullptr;
+    Allocation::destroyAllocator();
     device.destroy();
     instance.destroy(surface);
     instance.destroy();

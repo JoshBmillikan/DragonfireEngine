@@ -45,7 +45,7 @@ void Allocation::initAllocator(
             .device = device,
             .pVulkanFunctions = &functions,
             .instance = instance,
-            .vulkanApiVersion = VK_VERSION_1_3,
+            .vulkanApiVersion = VK_API_VERSION_1_3,
     };
 
     if (vmaCreateAllocator(&createInfo, &Allocation::allocator) != VK_SUCCESS)

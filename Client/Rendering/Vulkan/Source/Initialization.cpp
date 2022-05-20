@@ -207,7 +207,7 @@ static vk::Instance createInstance(SDL_Window* window, PFN_vkDebugUtilsMessenger
             .applicationVersion = VK_MAKE_VERSION(0, 0, 1),
             .pEngineName = "Dragonfire Engine",
             .engineVersion = VK_MAKE_VERSION(0, 0, 1),
-            .apiVersion = VK_API_VERSION_1_2,
+            .apiVersion = VK_API_VERSION_1_3,
     };
 
     auto extensions = getInstanceExtensions(window, debugCallback != nullptr);
