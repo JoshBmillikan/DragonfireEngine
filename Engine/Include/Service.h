@@ -5,6 +5,7 @@
 #pragma once
 #include "Engine.h"
 #include <concepts>
+#include <shared_mutex>
 
 namespace dragonfire {
 class EXPORTED Service {
@@ -14,7 +15,10 @@ public:
     /// Installs a service into the service locator.<br>
     /// After calling, this object is owned by the
     /// service locator and must <b>not</b> be freed manually
-    void install() noexcept { services.push_back(this); }
+    void install() noexcept {
+        std::unique_lock lock(mutex);
+        services.push_back(this);
+    }
 
     template<class T, typename... Args>
         requires std::is_base_of_v<Service, T>
@@ -44,9 +48,11 @@ public:
 
 private:
     inline static std::vector<Service*> services;
+    inline static std::shared_mutex mutex;
     template<class T>
         requires std::is_base_of_v<Service, T>
     static T* find() {
+        std::shared_lock lock(mutex);
         for (Service* service : services) {
             auto ptr = dynamic_cast<T*>(service);
             if (ptr)
