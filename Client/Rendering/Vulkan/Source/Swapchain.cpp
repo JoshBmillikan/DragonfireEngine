@@ -47,7 +47,7 @@ dragonfire::rendering::Swapchain::Swapchain(
             .preTransform = capabilities.currentTransform,
             .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
             .presentMode = getPresentMode(physicalDevice),
-            .oldSwapchain = old->swapchain,
+            .oldSwapchain = old->swapchain.get(),
     };
 
     swapchain = device.createSwapchainKHRUnique(createInfo);

@@ -31,7 +31,7 @@ static vk::PhysicalDevice getPhysicalDevice(
 static vk::SurfaceKHR createSurface(SDL_Window* window, vk::Instance instance);
 
 inline static std::vector<const char*> getLayers(bool validation) {
-    std::vector<const char*> layers{};
+    std::vector<const char*> layers;
     if (validation)
         layers.push_back("VK_LAYER_KHRONOS_validation");
     return layers;
