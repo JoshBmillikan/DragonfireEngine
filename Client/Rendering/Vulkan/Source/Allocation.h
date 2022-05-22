@@ -30,7 +30,7 @@ public:
     );
 
     /// Destroys the global vma allocator
-    inline static void destroyAllocator() noexcept {
+    static void destroyAllocator() noexcept {
         vmaDestroyAllocator(Allocation::allocator);
         Allocation::allocator = nullptr;
         spdlog::info("Destroyed vulkan allocator");
@@ -42,6 +42,10 @@ class Buffer : public Allocation {
 
 public:
     ~Buffer() noexcept override { vmaDestroyBuffer(allocator, buffer, allocation); };
+
+    vk::Buffer& operator *() noexcept {
+        return buffer;
+    }
 };
 
 class Image : public Allocation {
@@ -49,5 +53,9 @@ class Image : public Allocation {
 
 public:
     ~Image() noexcept override { vmaDestroyImage(allocator, image, allocation); }
+
+    vk::Image& operator *() noexcept {
+        return image;
+    }
 };
 }   // namespace dragonfire::rendering
