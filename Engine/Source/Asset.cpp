@@ -3,3 +3,5 @@
 //
 
 #include "Asset.h"
+
+using namespace dragonfire::rendering;

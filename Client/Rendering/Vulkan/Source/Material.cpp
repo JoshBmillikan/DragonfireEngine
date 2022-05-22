@@ -3,41 +3,41 @@
 //
 
 #include "Material.h"
+#include <FileLocator.h>
 #include <nlohmann/json.hpp>
+
 using namespace dragonfire::rendering;
-IMaterial* loadMaterial(std::ifstream& stream) { return new Material(stream); }
 
-void read(std::vector<uint32_t>& vec, std::ifstream& stream) {
-    uint64_t len;
-    stream >> len;
-    if (len > 0) {
-        vec.reserve(len);
-        for (auto i = 0; i < len; i++) {
-            uint32_t word;
-            stream >> word;
-            vec.push_back(word);
-        }
-    }
-}
-
-nlohmann::json readJson(std::ifstream& stream) {
-    std::string header;
-    std::getline(stream, header, '\0');
-    return header;
-}
-
-Material::Material(std::ifstream& stream) {
-    std::vector<uint32_t> vertex, fragment, geometry;
-    auto header = readJson(stream);
-
-    bool isLittleEndian = header["littleEndian"];
-    if ((isLittleEndian && std::endian::native == std::endian::little)
-        || (isLittleEndian == 0 && std::endian::native == std::endian::big)) {
-        // todo handle endian miss-match
-    }
+MaterialFactory::MaterialFactory(vk::Device device) : device(device) {
+    const auto& locator = Service::get<FileLocator>();
+    auto file = locator.dataDir;
+    file.append("ShaderCache");
+    if (!exists(file))
+        cache = device.createPipelineCache(vk::PipelineCacheCreateInfo{});
     else {
-        read(vertex, stream);
-        read(fragment, stream);
-        read(geometry, stream);
+        std::ifstream stream(file, std::ios::in | std::ios::binary);
+        std::vector<unsigned char> data((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+
+        vk::PipelineCacheCreateInfo createInfo{
+                .initialDataSize = data.size(),
+                .pInitialData = data.data(),
+        };
+        cache = device.createPipelineCache(createInfo);
     }
 }
+
+MaterialFactory::~MaterialFactory() {
+    const auto& locator = Service::get<FileLocator>();
+    auto file = locator.dataDir;
+    file.append("ShaderCache");
+    auto data = device.getPipelineCacheData(cache);
+    std::ofstream out(file, std::ios::out | std::ios::binary);
+    out.write(reinterpret_cast<const char*>(data.data()), (ssize_t) data.size());
+    if (out.bad())
+        spdlog::error("Failed to save pipeline cache");
+    else
+        out.flush();
+    device.destroy(cache);
+}
+
+Material* MaterialFactory::createMaterial(std::ifstream& stream, const std::string& materialName) { return nullptr; }

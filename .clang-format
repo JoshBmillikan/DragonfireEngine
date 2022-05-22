@@ -44,6 +44,7 @@ IndentCaseLabels: true
 IndentPPDirectives: BeforeHash
 IndentWidth: 4
 KeepEmptyLinesAtTheStartOfBlocks: false
+EmptyLineBeforeAccessModifier: LogicalBlock
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: Inner
 ObjCSpaceAfterProperty: false

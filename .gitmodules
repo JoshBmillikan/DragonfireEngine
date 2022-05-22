@@ -24,3 +24,7 @@
 	path = ThirdParty/Json
 	url = https://github.com/nlohmann/json.git
 	branch = master
+[submodule "ThirdParty/Lz4"]
+	path = ThirdParty/Lz4
+	url = https://github.com/lz4/lz4.git
+	branch = release

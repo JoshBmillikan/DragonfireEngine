@@ -42,6 +42,7 @@ public:
     }
 
     static void destroyServices() noexcept {
+        std::unique_lock lock(mutex);
         std::for_each(services.rbegin(), services.rend(), [](auto ptr) { delete ptr; });
         services.clear();
     }

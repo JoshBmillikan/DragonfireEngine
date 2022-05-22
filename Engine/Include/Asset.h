@@ -4,13 +4,15 @@
 
 #pragma once
 #include "Service.h"
+#include <filesystem>
 
 namespace dragonfire::rendering {
 struct Asset {
     virtual ~Asset() noexcept = default;
-};
 
-class AssetManager : public Service {
+    class Manager : public Service {
+    public:
 
+    };
 };
 }

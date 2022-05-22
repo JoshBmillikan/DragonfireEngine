@@ -18,6 +18,13 @@ void GameClient::mainLoop(double deltaTime) {
             case SDL_QUIT:
                 running = false;
                 break;
+            case SDL_WINDOWEVENT:
+                switch (event.window.event) {
+                    case SDL_WINDOWEVENT_RESIZED:
+                        renderingEngine.resize(event.window.data1, event.window.data2);
+                        break;
+                }
+                break;
         }
         //todo events
     }

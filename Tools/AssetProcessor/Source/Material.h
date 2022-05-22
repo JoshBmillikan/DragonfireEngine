@@ -10,6 +10,7 @@ namespace dragonfire {
 
 void compileMaterial(
         const std::filesystem::path& outFile,
+        const std::string& definition,
         const std::string& vertShader,
         const std::string& fragShader,
         const std::string& geometryShader = ""

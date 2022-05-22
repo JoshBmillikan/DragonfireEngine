@@ -7,6 +7,7 @@
 #include <thread>
 #include "Mesh.h"
 #include "Material.h"
+#include "Swapchain.h"
 
 namespace dragonfire::rendering {
 class RenderingEngine final : public IRenderEngine {
@@ -17,6 +18,7 @@ public:
     void beginRendering(const glm::mat4& view, const glm::mat4& projection) noexcept override;
     void render(BaseMesh* meshPtr, IMaterial* materialPtr, const glm::mat4& transform) noexcept override;
     void endRendering() noexcept override;
+    void resize(uint32_t width, uint32_t height) override;
 
     RenderingEngine(RenderingEngine&& other) = delete;
     RenderingEngine(RenderingEngine& other) = delete;
@@ -25,6 +27,7 @@ public:
 
 private:
     void renderThread(const std::stop_token& token) noexcept;
+    void present(const std::stop_token& token) noexcept;
 
     /// callback to log debug messages from the validation layers
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -35,6 +38,21 @@ private:
     ) noexcept;
 
 private:
+    constexpr static int FRAMES_IN_FLIGHT = 2;
+    struct Frame {
+        vk::CommandBuffer cmd;
+    }frames[FRAMES_IN_FLIGHT];
+
+    inline Frame& getCurrentFrame() noexcept {
+        return frames[frameCount % FRAMES_IN_FLIGHT];
+    }
+
+    enum class RenderState {
+        Start,
+        Render,
+        End
+    };
+private:
     uint64_t frameCount = 0;
     vk::Instance instance;
     vk::PhysicalDevice physicalDevice;
@@ -43,6 +61,8 @@ private:
     vk::Queue graphicsQueue, presentationQueue;
 
     std::vector<std::jthread> renderThreads;
+    std::jthread presentationThread;
 
+    Swapchain swapchain;
 };
 }   // namespace dragonfire::rendering

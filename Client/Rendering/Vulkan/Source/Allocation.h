@@ -11,7 +11,11 @@ namespace dragonfire::rendering {
 class Allocation {
 protected:
     static VmaAllocator allocator;
+    VmaAllocation allocation;
+    VmaAllocationInfo info;
 public:
+    Allocation() = delete;
+    virtual ~Allocation() noexcept = default;
     static void initAllocator(
             vk::Instance instance,
             vk::PhysicalDevice physicalDevice,
@@ -22,8 +26,21 @@ public:
     inline static void destroyAllocator() noexcept {
         vmaDestroyAllocator(Allocation::allocator);
         Allocation::allocator = nullptr;
-        spdlog::info("Destroy vulkan allocator");
+        spdlog::info("Destroyed vulkan allocator");
     }
 };
 
+class Buffer : public Allocation {
+    vk::Buffer buffer;
+
+public:
+    ~Buffer() noexcept override { vmaDestroyBuffer(allocator, buffer, allocation); };
+};
+
+class Image : public Allocation {
+    vk::Image image;
+
+public:
+    ~Image() noexcept override { vmaDestroyImage(allocator, image, allocation); }
+};
 }   // namespace dragonfire::rendering

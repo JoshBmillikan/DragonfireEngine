@@ -56,6 +56,7 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     renderThreads.reserve(threadCount);
     for (auto i = 0; i < threadCount; i++)
         renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this));
+    presentationThread = std::jthread(std::bind_front(&dragonfire::rendering::RenderingEngine::presentationThread, this));
 }
 
 QueueFamilies::QueueFamilies(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
