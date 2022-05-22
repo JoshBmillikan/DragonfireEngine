@@ -16,6 +16,12 @@ protected:
 public:
     Allocation() = delete;
     virtual ~Allocation() noexcept = default;
+
+    /// \brief Initializes the global vma allocator
+    /// \param instance the vulkan instance handle
+    /// \param physicalDevice the physical device handle
+    /// \param device the logical device handle
+    /// \param loader the dispatch loader to get vulkan functions from
     static void initAllocator(
             vk::Instance instance,
             vk::PhysicalDevice physicalDevice,
@@ -23,6 +29,7 @@ public:
             const vk::DispatchLoaderDynamic& loader = VULKAN_HPP_DEFAULT_DISPATCHER
     );
 
+    /// Destroys the global vma allocator
     inline static void destroyAllocator() noexcept {
         vmaDestroyAllocator(Allocation::allocator);
         Allocation::allocator = nullptr;

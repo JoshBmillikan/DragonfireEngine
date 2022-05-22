@@ -12,7 +12,7 @@
 namespace dragonfire::rendering {
 class RenderingEngine final : public IRenderEngine {
 public:
-    /// \brief Construct the rendering engine
+    /// \brief Constructs the rendering engine
     /// \param window the SDL window to render to
     /// \param validation if true, enable validation layers
     RenderingEngine(SDL_Window* window, bool validation);

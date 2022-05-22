@@ -17,6 +17,7 @@
 
 using namespace dragonfire;
 using namespace std::chrono;
+
 void Game::run() {
     auto time = steady_clock::now();
     while (running) {
@@ -26,29 +27,10 @@ void Game::run() {
     }
 }
 
-static void initLogging(spdlog::level::level_enum level) {
-    using namespace spdlog;
-    auto stdoutSink = std::make_shared<sinks::stdout_color_sink_mt>();
-    auto fileSink = std::make_shared<sinks::basic_file_sink_mt>(
-            std::filesystem::temp_directory_path().append("Dragonfire/EngineLog.txt").string()
-    );
-    std::vector<sink_ptr> sinks{stdoutSink, fileSink};
-    auto logger = std::make_shared<async_logger>(
-            "DragonfireEngineLog",
-            sinks.begin(),
-            sinks.end(),
-            thread_pool(),
-            async_overflow_policy::block
-    );
-    register_logger(logger);
-    set_level(level);
-    info("Logging started");
-    info("Platform: {}", SDL_GetPlatform());
-    SDL_version version;
-    SDL_GetVersion(&version);
-    info("SDL Version: {}.{}.{}", version.major, version.minor, version.patch);
-}
+///Initializes spdlog
+static void initLogging(spdlog::level::level_enum level);
 
+/// Parses command line arguments and adds options specified on the command line to the settings service
 static void parseCLI(int argc, char** argv) {
     // matches CLI args, eg --foo or --foo=bar
     RE2 regex(R"(^-?-([A-Za-z_0-9\.]+) *= *([-_A-Za-z0-9\.]+) *$|--([A-Za-z_0-9\.]+) *$)");
@@ -73,4 +55,27 @@ Game::~Game() noexcept {
     Service::destroyServices();
     spdlog::info("Game shutdown");
     spdlog::shutdown();
+}
+
+static void initLogging(spdlog::level::level_enum level) {
+    using namespace spdlog;
+    auto stdoutSink = std::make_shared<sinks::stdout_color_sink_mt>();
+    auto fileSink = std::make_shared<sinks::basic_file_sink_mt>(
+            std::filesystem::temp_directory_path().append("Dragonfire/EngineLog.txt").string()
+    );
+    std::vector<sink_ptr> sinks{stdoutSink, fileSink};
+    auto logger = std::make_shared<async_logger>(
+            "DragonfireEngineLog",
+            sinks.begin(),
+            sinks.end(),
+            thread_pool(),
+            async_overflow_policy::block
+    );
+    register_logger(logger);
+    set_level(level);
+    info("Logging started");
+    info("Platform: {}", SDL_GetPlatform());
+    SDL_version version;
+    SDL_GetVersion(&version);
+    info("SDL Version: {}.{}.{}", version.major, version.minor, version.patch);
 }

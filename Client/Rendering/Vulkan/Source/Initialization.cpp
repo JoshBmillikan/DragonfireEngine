@@ -168,6 +168,7 @@ static bool isValidDevice(
             return false;
     }
 
+    // Check if the device has the required queue families
     try {
         QueueFamilies(device, surface);
     }
