@@ -15,5 +15,5 @@
 #endif
 
 #ifndef APP_NAME
-    #define APP_NAME "Dragonfire Engine"
+    #define APP_NAME "DragonfireEngine"
 #endif
