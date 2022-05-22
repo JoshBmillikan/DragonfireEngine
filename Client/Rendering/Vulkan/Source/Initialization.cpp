@@ -5,15 +5,29 @@
 #include "RenderingEngine.h"
 #include <Engine.h>
 #include <SDL_vulkan.h>
+#include <alloca.h>
 
+/// \brief Creates the main vulkan instance
+/// \param window a SDL window handle, used to retrieve the required vulkan extensions from SDL
+/// \param debugCallback (optional) A debug callback function, used for enabling the validation layers
+/// \return A vulkan instance handle
 static vk::Instance createInstance(SDL_Window* window, PFN_vkDebugUtilsMessengerCallbackEXT debugCallback);
 
+/// \brief Gets the physical gpu handle
+/// \param instance A valid vulkan instance handle
+/// \param surface A valid vulkan surface handle
+/// \param deviceExtensions A vector of required extensions the device must support
+/// \return A physical device handle to a device supporting the surface and given extensions
 static vk::PhysicalDevice getPhysicalDevice(
         vk::Instance instance,
         vk::SurfaceKHR surface,
         const std::vector<const char*>& deviceExtensions
 );
 
+/// \brief Creates the surface for the given SDL window
+/// \param window A SDL window pointer used to create the surface
+/// \param instance The vulkan instance handle
+/// \return A vulkan surface handle for the given window
 static vk::SurfaceKHR createSurface(SDL_Window* window, vk::Instance instance);
 
 inline static std::vector<const char*> getLayers(bool validation) {
@@ -31,6 +45,11 @@ struct QueueFamilies {
     [[nodiscard]] inline bool isUnified() const noexcept { return graphicsIndex == presentationIndex; }
 };
 
+/// \brief Creates the logical vulkan device handle
+/// \param physicalDevice The physical device to create the logical device for
+/// \param extensions Vector of device extensions to enable
+/// \param queueFamilies The QueueFamilies struct containing the queue families to enable for this device
+/// \return The handle to the created device
 static vk::Device createDevice(
         vk::PhysicalDevice physicalDevice,
         const std::vector<const char*>& extensions,
@@ -56,13 +75,19 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     renderThreads.reserve(threadCount);
     for (auto i = 0; i < threadCount; i++)
         renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this));
-    presentationThread = std::jthread(std::bind_front(&dragonfire::rendering::RenderingEngine::presentationThread, this));
+    presentationThread =
+            std::jthread(std::bind_front(&dragonfire::rendering::RenderingEngine::presentationThread, this));
 }
 
 QueueFamilies::QueueFamilies(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
-    auto props = device.getQueueFamilyProperties();
+    vk::QueueFamilyProperties* props = nullptr;
+    uint32_t size;
+    device.getQueueFamilyProperties(&size, props);
+    props = (vk::QueueFamilyProperties*) alloca(sizeof(vk::QueueFamilyProperties) * size);
+    device.getQueueFamilyProperties(&size, props);
+
     bool foundGraphics = false, foundPresent = false;
-    for (auto i = 0; i < props.size(); i++) {
+    for (auto i = 0; i < size; i++) {
         if (props[i].queueFlags & vk::QueueFlagBits::eGraphics) {
             graphicsIndex = i;
             foundGraphics = true;
@@ -115,17 +140,33 @@ static bool isValidDevice(
         vk::SurfaceKHR surface,
         const std::vector<const char*>& requestedExtensions
 ) {
-    auto props = device.getProperties();
-    auto features = device.getFeatures();
-    auto extProps = device.enumerateDeviceExtensionProperties(nullptr);
+    // auto props = device.getProperties();
+    // auto features = device.getFeatures();
 
     // check if device supports all requested extensions
-    if (!std::ranges::all_of(requestedExtensions, [&](const auto& ext) {
-            return std::ranges::any_of(extProps, [&](const auto& prop) {
-                return strcmp(prop.extensionName, ext) == 0;
-            });
-        }))
-        return false;
+    vk::ExtensionProperties* extProps = nullptr;
+    uint32_t size;
+    vk::resultCheck(
+            device.enumerateDeviceExtensionProperties(nullptr, &size, extProps),
+            "Failed to get device extensions size"
+    );
+    extProps = (vk::ExtensionProperties*) alloca(sizeof(vk::ExtensionProperties) * size);
+    vk::resultCheck(
+            device.enumerateDeviceExtensionProperties(nullptr, &size, extProps),
+            "Failed to get device extensions"
+    );
+
+    for (const auto& ext : requestedExtensions) {
+        bool found = false;
+        for (uint32_t i = 0; i < size; i++) {
+            if (strcmp(extProps[i].extensionName, ext) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            return false;
+    }
 
     try {
         QueueFamilies(device, surface);
@@ -134,7 +175,8 @@ static bool isValidDevice(
         return false;
     }
 
-    return true;   //todo check other stuff
+    //todo check other stuff
+    return true;
 }
 
 static vk::PhysicalDevice getPhysicalDevice(
@@ -142,40 +184,41 @@ static vk::PhysicalDevice getPhysicalDevice(
         vk::SurfaceKHR surface,
         const std::vector<const char*>& deviceExtensions
 ) {
-    auto devices = instance.enumeratePhysicalDevices();
-    for (const char* ext : deviceExtensions)
-        spdlog::info("Loaded device extension {}", ext);
+    vk::PhysicalDevice* devices = nullptr;
+    uint32_t size;
+    vk::resultCheck(instance.enumeratePhysicalDevices(&size, devices), "Failed to get device count");
+    devices = (vk::PhysicalDevice*) alloca(sizeof(vk::PhysicalDevice) * size);
+    vk::resultCheck(instance.enumeratePhysicalDevices(&size, devices), "Failed to get devices");
 
-    if (devices.empty())
+    if (size == 0)
         throw std::runtime_error("No GPU found");
 
-    auto device = std::find_if(devices.begin(), devices.end(), [&](const auto device) {
-        return isValidDevice(device, surface, deviceExtensions)
-               and device.getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
-    });
+    for (const char* ext : deviceExtensions)
+        spdlog::info("Loading device extension {}", ext);
 
-    // find a valid integrated gpu if no discrete gpu was found
-    if (device == devices.end()) {
-        auto integrated = std::find_if(devices.begin(), devices.end(), [&](const auto device) {
-            return isValidDevice(device, surface, deviceExtensions);
-        });
-
-        if (integrated != devices.end()) {
-            spdlog::warn("No discrete GPU found, falling back to integrated gpu");
-            return *integrated;
+    vk::PhysicalDevice found = nullptr, valid = nullptr;
+    for (uint32_t i = 0; i < size; i++) {
+        if (isValidDevice(devices[i], surface, deviceExtensions)) {
+            valid = devices[i];
+            if (devices[i].getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
+                found = devices[i];
         }
-        // If no suitable gpu was found at all
-        throw std::runtime_error("No suitable GPU available");
+    }
+    if (found)
+        return found;
+
+    if (valid) {
+        spdlog::warn("No discrete GPU found, falling back to integrated gpu");
+        return valid;
     }
 
-    return *device;
+    throw std::runtime_error("No suitable GPU available");
 }
 
 static std::vector<const char*> getInstanceExtensions(SDL_Window* window, bool validation) {
-    std::vector<const char*> extensions;
     unsigned int count;
     SDL_Vulkan_GetInstanceExtensions(window, &count, nullptr);
-    extensions.resize(count);
+    std::vector<const char*> extensions(validation ? count + 1 : count);
     SDL_Vulkan_GetInstanceExtensions(window, &count, extensions.data());
     if (validation)
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
