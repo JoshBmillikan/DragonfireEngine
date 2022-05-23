@@ -7,8 +7,16 @@
 #include <nlohmann/json.hpp>
 
 using namespace dragonfire::rendering;
+using namespace dragonfire;
 
-MaterialFactory::MaterialFactory(vk::Device device) : device(device) {
+static SQLite::Database connect() {
+    const auto& locator = Service::get<FileLocator>();
+    auto dbPath = locator.assetDir;
+    dbPath.append("materials.db");
+    return {dbPath, SQLite::OPEN_READONLY | SQLite::OPEN_NOMUTEX | SQLite::OPEN_NOFOLLOW};
+}
+
+MaterialFactory::MaterialFactory(vk::Device device) : device(device), db(connect()) {
     const auto& locator = Service::get<FileLocator>();
     auto file = locator.dataDir;
     file.append("ShaderCache");
@@ -40,4 +48,6 @@ MaterialFactory::~MaterialFactory() {
     device.destroy(cache);
 }
 
-Material* MaterialFactory::createMaterial(std::ifstream& stream, const std::string& materialName) { return nullptr; }
+Material* MaterialFactory::createMaterial(std::ifstream& stream, const std::string& materialName) {
+    return nullptr;
+}

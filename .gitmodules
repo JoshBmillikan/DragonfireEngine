@@ -28,3 +28,6 @@
 	path = ThirdParty/Lz4
 	url = https://github.com/lz4/lz4.git
 	branch = release
+[submodule "ThirdParty/SQLiteCpp"]
+	path = ThirdParty/SQLiteCpp
+	url = https://github.com/SRombauts/SQLiteCpp.git

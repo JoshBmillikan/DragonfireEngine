@@ -11,10 +11,11 @@ namespace dragonfire::rendering {
 class Allocation {
 protected:
     static VmaAllocator allocator;
-    VmaAllocation allocation;
-    VmaAllocationInfo info;
+    VmaAllocation allocation{};
+    VmaAllocationInfo info{};
+
 public:
-    Allocation() = delete;
+    Allocation() = default;
     virtual ~Allocation() noexcept = default;
 
     /// \brief Initializes the global vma allocator
@@ -35,17 +36,35 @@ public:
         Allocation::allocator = nullptr;
         spdlog::info("Destroyed vulkan allocator");
     }
+
+    void* map() {
+        void* ptr;
+        if (vmaMapMemory(allocator, allocation, &ptr) != VK_SUCCESS)
+            throw std::runtime_error("Failed to map memory");
+        return ptr;
+    }
+
+    void unmap() const noexcept { vmaUnmapMemory(allocator, allocation); }
 };
 
 class Buffer : public Allocation {
     vk::Buffer buffer;
 
 public:
+    Buffer(const vk::BufferCreateInfo& createInfo, const VmaAllocationCreateInfo& allocInfo) {
+        vmaCreateBuffer(
+                allocator,
+                reinterpret_cast<const VkBufferCreateInfo*>(&createInfo),
+                &allocInfo,
+                reinterpret_cast<VkBuffer*>(&buffer),
+                &allocation,
+                &info
+        );
+    }
+
     ~Buffer() noexcept override { vmaDestroyBuffer(allocator, buffer, allocation); };
 
-    vk::Buffer& operator *() noexcept {
-        return buffer;
-    }
+    operator vk::Buffer() noexcept { return buffer; }
 };
 
 class Image : public Allocation {
@@ -54,8 +73,21 @@ class Image : public Allocation {
 public:
     ~Image() noexcept override { vmaDestroyImage(allocator, image, allocation); }
 
-    vk::Image& operator *() noexcept {
-        return image;
-    }
+    operator vk::Image() noexcept { return image; }
+};
+
+template<typename T>
+class GPUObject : public Buffer {
+public:
+    GPUObject()
+        : Buffer(
+                vk::BufferCreateInfo{
+                        .size = sizeof(T),
+                },
+                VmaAllocationCreateInfo{
+
+                }
+        ) {}
+    T& operator*() noexcept { return *reinterpret_cast<T*>(info.pMappedData); }
 };
 }   // namespace dragonfire::rendering

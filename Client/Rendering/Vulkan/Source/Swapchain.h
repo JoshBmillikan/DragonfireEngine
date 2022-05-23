@@ -19,5 +19,8 @@ public:
             Swapchain* old = nullptr
     );
     ~Swapchain();
+    vk::SwapchainKHR& operator *() noexcept {
+        return swapchain.get();
+    }
 };
 }   // namespace dragonfire::rendering

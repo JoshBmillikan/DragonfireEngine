@@ -65,6 +65,7 @@ public:
 private:
     inline static std::vector<Service*> services;
     inline static std::shared_mutex mutex;
+
     template<class T>
         requires std::is_base_of_v<Service, T>
     static T* find() {

@@ -3,5 +3,5 @@ add_library(Engine SHARED Include/Engine.h Source/Engine.cpp Include/Service.h S
         Include/FileLocator.h Source/Settings.cpp Include/Settings.h Source/World.cpp Include/World.h Source/Asset.cpp Include/Asset.h Source/Util.cpp Include/Util.h)
 target_include_directories(Engine PUBLIC Include)
 target_compile_definitions(Engine PRIVATE _DLL)
-target_link_libraries(Engine PUBLIC spdlog::spdlog glm::glm SDL2::SDL2 tomlplusplus::tomlplusplus re2::re2 EnTT::EnTT nlohmann_json::nlohmann_json lz4_static Sqlite3)
+target_link_libraries(Engine PUBLIC spdlog::spdlog glm::glm SDL2::SDL2 tomlplusplus::tomlplusplus re2::re2 EnTT::EnTT nlohmann_json::nlohmann_json lz4_static Sqlite3 SQLiteCpp)
 target_precompile_headers(Engine PUBLIC <vector> <algorithm> <memory> <stdexcept> <spdlog/spdlog.h> <tuple> <glm/glm.hpp> <cstdint> <string>)

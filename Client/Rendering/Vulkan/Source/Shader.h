@@ -6,23 +6,35 @@
 
 namespace dragonfire::rendering {
 
-    class Shader {
-        vk::PipelineLayout layout;
-        std::array<vk::DescriptorSetLayout, 4> descriptorLayouts;
+class Shader {
+    vk::PipelineLayout layout;
+    std::array<vk::DescriptorSetLayout, 4> descriptorLayouts;
+
+public:
+
+    struct Module {
+        vk::UniqueShaderModule module;
+        vk::ShaderStageFlagBits flags{};
+        Module(vk::UniqueShaderModule&& module, vk::ShaderStageFlagBits flags) : module(std::move(module)), flags(flags) {}
+    };
+    class Library {
+        vk::PipelineCache cache;
+        vk::Device device;
+        std::unordered_map<std::string, vk::UniqueShaderModule> loadedShaders;
+
     public:
-        struct Module {
-            vk::ShaderModule module;
-            vk::ShaderStageFlagBits flags{};
-        };
-        class Loader {
-            vk::PipelineCache cache;
-            vk::Device device;
-            std::unordered_map<std::string, std::unique_ptr<Shader>> loadedShaders;
-        public:
-            Loader(vk::Device device);
-            ~Loader() noexcept;
-            Shader* getShader(const std::string& shaderName);
-        };
+        Library(vk::Device device);
+        ~Library() noexcept;
+        vk::ShaderModule& getShader(const std::string& shaderName);
+        vk::ShaderModule& operator [](const std::string& shaderName) {
+            return getShader(shaderName);
+        }
     };
 
-}   // namespace dragonfire
+    Shader(std::string_view info, std::vector<Module>&& modules);
+
+private:
+    std::vector<Module> modules;
+};
+
+}   // namespace dragonfire::rendering
