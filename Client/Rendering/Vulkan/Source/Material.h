@@ -4,7 +4,6 @@
 
 #pragma once
 #include <IMaterial.h>
-#include <Service.h>
 #include <filesystem>
 #include <SQLiteCpp/Database.h>
 
@@ -13,19 +12,15 @@ class Material : public IMaterial {
 public:
 };
 
-class MaterialFactory : Service {
+class MaterialFactory {
     vk::PipelineCache cache;
     vk::Device device;
     SQLite::Database db;
+    std::unordered_map<std::string, std::weak_ptr<Material>> materials;
 public:
     explicit MaterialFactory(vk::Device device);
-    ~MaterialFactory() override;
+    ~MaterialFactory() noexcept;
 
-    Material* createMaterial(const std::filesystem::path& path) {
-        std::ifstream stream(path, std::ios::in | std::ios::binary);
-        return createMaterial(stream, path.stem());
-    }
-
-    Material* createMaterial(std::ifstream& stream, const std::string& materialName);
+    std::shared_ptr<Material> createMaterial(const std::string& materialName);
 };
 }   // namespace dragonfire::rendering

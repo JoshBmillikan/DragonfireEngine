@@ -31,3 +31,6 @@
 [submodule "ThirdParty/SQLiteCpp"]
 	path = ThirdParty/SQLiteCpp
 	url = https://github.com/SRombauts/SQLiteCpp.git
+[submodule "ThirdParty/SPIRV-Reflect"]
+	path = ThirdParty/SPIRV-Reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect.git

@@ -9,6 +9,26 @@
 using namespace dragonfire::rendering;
 using namespace dragonfire;
 
+std::shared_ptr<Material> MaterialFactory::createMaterial(const std::string& materialName) {
+    try {
+        auto weak = materials.at(materialName);
+        if (!weak.expired())
+            return weak.lock();
+    }
+    catch (const std::out_of_range& e) {
+    }
+    SQLite::Statement stmt(
+            db,
+            "SELECT spv FROM material WHERE name=? "
+            "INNER JOIN shader_material ON shader_material.material=material.id "
+            "INNER JOIN shader ON shader.id=shader_material.shader"
+    );
+    stmt.bindNoCopy(1, materialName);
+    stmt.executeStep();
+    // todo
+    return nullptr;
+}
+
 static SQLite::Database connect() {
     const auto& locator = Service::get<FileLocator>();
     auto dbPath = locator.assetDir;
@@ -34,7 +54,7 @@ MaterialFactory::MaterialFactory(vk::Device device) : device(device), db(connect
     }
 }
 
-MaterialFactory::~MaterialFactory() {
+MaterialFactory::~MaterialFactory() noexcept {
     const auto& locator = Service::get<FileLocator>();
     auto file = locator.dataDir;
     file.append("ShaderCache");
@@ -46,8 +66,4 @@ MaterialFactory::~MaterialFactory() {
     else
         out.flush();
     device.destroy(cache);
-}
-
-Material* MaterialFactory::createMaterial(std::ifstream& stream, const std::string& materialName) {
-    return nullptr;
 }
