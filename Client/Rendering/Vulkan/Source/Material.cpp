@@ -9,6 +9,10 @@
 using namespace dragonfire::rendering;
 using namespace dragonfire;
 
+void Material::bind(vk::CommandBuffer cmd) const noexcept {
+
+}
+
 std::shared_ptr<Material> MaterialFactory::createMaterial(const std::string& materialName) {
     try {
         auto weak = materials.at(materialName);

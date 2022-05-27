@@ -7,6 +7,8 @@
 #include "Mesh.h"
 #include "Swapchain.h"
 #include <Interface.h>
+#include <barrier>
+#include <readerwritercircularbuffer.h>
 #include <thread>
 
 namespace dragonfire::rendering {
@@ -45,10 +47,16 @@ public:
     RenderingEngine& operator=(RenderingEngine&& other) = delete;
     RenderingEngine& operator=(RenderingEngine& other) = delete;
 
+public:
+    constexpr static int FRAMES_IN_FLIGHT = 2;
+    const uint32_t renderThreadCount = std::max(std::thread::hardware_concurrency() / 2, 1u);
+
 private:
     /// \brief This function runs in a separate thread and records secondary command buffers
     /// \param token stop token to signal when the thread should stop
-    void renderThread(const std::stop_token& token) noexcept;
+    /// \param index The threads index, to be used for access thread specific data in arrays
+    void renderThread(const std::stop_token& token, uint32_t index) noexcept;
+
     /// \brief Uploads the current command buffers to the GPU and presents the image, runs in its own thread
     /// \param token stop token to signal when the thread should stop
     void present(const std::stop_token& token) noexcept;
@@ -63,26 +71,39 @@ private:
     ) noexcept;
 
 private:
-    constexpr static int FRAMES_IN_FLIGHT = 2;
+    constexpr static int THREAD_BUFFER_CAPACITY = 16;
     struct Frame {
         vk::CommandBuffer cmd;
+        vk::CommandPool primaryPool;
+        std::vector<vk::CommandBuffer> secondaryBuffers;
+        std::vector<vk::CommandPool> secondaryPools;
     } frames[FRAMES_IN_FLIGHT];
 
     /// \brief Gets the current frame in flight
     /// \return A reference to the current frame
     inline Frame& getCurrentFrame() noexcept { return frames[frameCount % FRAMES_IN_FLIGHT]; }
 
-    enum class RenderState { Start, Render, End };
+    struct RenderCommand {
+        enum class RenderState { Start, Render, End } state = RenderState::Start;
+        Mesh* mesh = nullptr;
+        Material* material = nullptr;
+        const glm::mat4* transform = nullptr;
+    };
+
+
 
 private:
-    uint64_t frameCount = 0;
+    std::atomic_uint64_t frameCount = 0;
     vk::Instance instance;
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
     vk::SurfaceKHR surface;
     vk::Queue graphicsQueue, presentationQueue;
-
+    Mesh* lastRenderedMesh = nullptr;
+    Material* lastRenderedMaterial = nullptr;
+    std::barrier<> barrier;
     std::vector<std::jthread> renderThreads;
+    std::vector<moodycamel::BlockingReaderWriterCircularBuffer<RenderCommand>> threadQueues;
     std::jthread presentationThread;
 
     //Swapchain swapchain;

@@ -3,40 +3,41 @@
 //
 
 #include "Swapchain.h"
+#include <SDL_vulkan.h>
 
+using namespace dragonfire::rendering;
 static vk::PresentModeKHR getPresentMode(vk::PhysicalDevice physicalDevice);
 static vk::SurfaceFormatKHR getSurfaceFormat(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface);
 
-dragonfire::rendering::Swapchain::Swapchain(
+Swapchain::Swapchain(
         vk::Device device,
         vk::PhysicalDevice physicalDevice,
         vk::SurfaceKHR surface,
         uint32_t graphicsIndex,
         uint32_t presentIndex,
-        dragonfire::rendering::Swapchain* old
+        SDL_Window* window,
+        Swapchain* old
 ) {
     auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
     if (capabilities.currentExtent.width == 0xFFFFFFFF) {
-        // TODO set extent based on swapchain
+        int width, height;
+        SDL_Vulkan_GetDrawableSize(window, &width, &height);
+        extent.width = width;
+        extent.height = height;
     }
-    else {
+    else
         extent = capabilities.currentExtent;
-    }
 
-    uint32_t imageCount;
-    if (capabilities.maxImageCount == 0) {
-        imageCount = capabilities.minImageCount + 1;
-    }
-    else {
-        imageCount = std::min(capabilities.minImageCount + 1, capabilities.maxImageCount);
-    }
+    uint32_t imageCount = capabilities.maxImageCount == 0
+                                  ? capabilities.minImageCount + 1
+                                  : std::min(capabilities.minImageCount + 1, capabilities.maxImageCount);
 
     auto fmt = getSurfaceFormat(physicalDevice, surface);
     vk::SharingMode sharingMode =
             graphicsIndex == presentIndex ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
 
     uint32_t indices[] = {graphicsIndex, presentIndex};
-    vk::SwapchainCreateInfoKHR createInfo {
+    vk::SwapchainCreateInfoKHR createInfo{
             .surface = surface,
             .minImageCount = imageCount,
             .imageFormat = fmt.format,
@@ -54,8 +55,15 @@ dragonfire::rendering::Swapchain::Swapchain(
     // todo
 }
 
-dragonfire::rendering::Swapchain::~Swapchain() {
+Swapchain::Swapchain(Swapchain&& other) noexcept {
+    // todo
 }
+
+Swapchain& Swapchain::operator=(Swapchain&& other) noexcept {
+    // todo
+}
+
+Swapchain::~Swapchain() {}
 
 static vk::PresentModeKHR getPresentMode(vk::PhysicalDevice physicalDevice) {
     auto modes = physicalDevice.getSurfacePresentModesKHR();

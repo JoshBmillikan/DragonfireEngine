@@ -12,7 +12,7 @@ CREATE TABLE shader
 (
     id   INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    type TEXT NOT NULL,
+    stage_flag INTEGER NOT NULL,
     spv  BLOB NOT NULL
 );
 

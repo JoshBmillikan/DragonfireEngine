@@ -9,7 +9,13 @@
 
 namespace dragonfire::rendering {
 class Material : public IMaterial {
+
 public:
+    inline vk::PipelineLayout getLayout() {
+        return nullptr;
+    }
+
+    void bind(vk::CommandBuffer) const noexcept;
 };
 
 class MaterialFactory {

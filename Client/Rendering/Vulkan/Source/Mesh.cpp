@@ -3,3 +3,6 @@
 //
 
 #include "Mesh.h"
+void dragonfire::rendering::Mesh::bind(vk::CommandBuffer cmd) const noexcept {
+
+}

@@ -34,3 +34,6 @@
 [submodule "ThirdParty/SPIRV-Reflect"]
 	path = ThirdParty/SPIRV-Reflect
 	url = https://github.com/KhronosGroup/SPIRV-Reflect.git
+[submodule "ThirdParty/ReaderWriterQueue"]
+	path = ThirdParty/ReaderWriterQueue
+	url = https://github.com/cameron314/readerwriterqueue.git

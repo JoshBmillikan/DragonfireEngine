@@ -56,8 +56,10 @@ static vk::Device createDevice(
         const QueueFamilies& queueFamilies
 );
 
-dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool validation) {
+dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool validation)
+    : barrier(renderThreadCount + 1) {
     assert(window);
+    // basic vulkan initialization
     instance = createInstance(window, validation ? RenderingEngine::debugCallback : nullptr);
     surface = createSurface(window, instance);
 
@@ -71,10 +73,45 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     graphicsQueue = device.getQueue(queueFamilies.graphicsIndex, 0);
     presentationQueue = device.getQueue(queueFamilies.presentationIndex, 0);
 
-    auto threadCount = std::max(std::thread::hardware_concurrency() / 2, 1u);
-    renderThreads.reserve(threadCount);
-    for (auto i = 0; i < threadCount; i++)
-        renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this));
+    // init per frame data
+    for (auto& frame : frames) {
+        vk::CommandPoolCreateInfo createInfo{
+                .flags = vk::CommandPoolCreateFlagBits::eTransient,
+                .queueFamilyIndex = queueFamilies.graphicsIndex,
+        };
+        auto primaryPool = device.createCommandPool(createInfo);
+        vk::CommandBufferAllocateInfo allocInfo{
+                .commandPool = primaryPool,
+                .level = vk::CommandBufferLevel::ePrimary,
+                .commandBufferCount = 1,
+        };
+        std::vector<vk::CommandPool> pools(renderThreadCount);
+        for (auto& pool : frame.secondaryPools)
+            pool = device.createCommandPool(createInfo);
+        std::vector<vk::CommandBuffer> buffers(renderThreadCount);
+        for(int i=0;i<renderThreadCount;i++) {
+            vk::CommandBufferAllocateInfo secondaryAlloc{
+                    .commandPool = frame.secondaryPools[i],
+                    .level = vk::CommandBufferLevel::ePrimary,
+                    .commandBufferCount = 1,
+            };
+            buffers[i] = device.allocateCommandBuffers(secondaryAlloc)[0];
+        }
+        frame = Frame{
+                .cmd = device.allocateCommandBuffers(allocInfo)[0],
+                .primaryPool = primaryPool,
+                .secondaryBuffers = std::move(buffers),
+                .secondaryPools = std::move(pools),
+        };
+    }
+
+    // init render threads
+    renderThreads.reserve(renderThreadCount);
+    threadQueues.reserve(renderThreadCount);
+    for (auto i = 0; i < renderThreadCount; i++) {
+        threadQueues.emplace_back(THREAD_BUFFER_CAPACITY);
+        renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this), i);
+    }
     presentationThread =
             std::jthread(std::bind_front(&dragonfire::rendering::RenderingEngine::presentationThread, this));
 }
