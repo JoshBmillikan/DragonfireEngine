@@ -9,7 +9,7 @@ namespace dragonfire::rendering {
 class Swapchain {
     vk::UniqueSwapchainKHR swapchain;
     vk::Extent2D extent;
-
+    uint32_t currentIndex;
 public:
     Swapchain() = default;
     Swapchain(
@@ -27,9 +27,15 @@ public:
     Swapchain(Swapchain& other) = delete;
     Swapchain& operator =(Swapchain& other) = delete;
 
+    [[nodiscard]] uint32_t getImageIndex() const noexcept {return currentIndex;}
+
     ~Swapchain();
     vk::SwapchainKHR& operator *() noexcept {
         return swapchain.get();
+    }
+
+    vk::Extent2D& getExtent() {
+        return extent;
     }
 };
 }   // namespace dragonfire::rendering

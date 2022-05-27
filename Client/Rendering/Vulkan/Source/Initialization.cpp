@@ -63,7 +63,10 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     instance = createInstance(window, validation ? RenderingEngine::debugCallback : nullptr);
     surface = createSurface(window, instance);
 
-    std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    std::vector<const char*> deviceExtensions = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+    };
     physicalDevice = getPhysicalDevice(instance, surface, deviceExtensions);
     spdlog::info("Using GPU {}", physicalDevice.getProperties().deviceName);
     QueueFamilies queueFamilies(physicalDevice, surface);
@@ -72,6 +75,15 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
 
     graphicsQueue = device.getQueue(queueFamilies.graphicsIndex, 0);
     presentationQueue = device.getQueue(queueFamilies.presentationIndex, 0);
+
+    swapchain = Swapchain(
+            device,
+            physicalDevice,
+            surface,
+            queueFamilies.graphicsIndex,
+            queueFamilies.presentationIndex,
+            window
+    );
 
     // init per frame data
     for (auto& frame : frames) {
@@ -89,7 +101,7 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
         for (auto& pool : frame.secondaryPools)
             pool = device.createCommandPool(createInfo);
         std::vector<vk::CommandBuffer> buffers(renderThreadCount);
-        for(int i=0;i<renderThreadCount;i++) {
+        for (int i = 0; i < renderThreadCount; i++) {
             vk::CommandBufferAllocateInfo secondaryAlloc{
                     .commandPool = frame.secondaryPools[i],
                     .level = vk::CommandBufferLevel::ePrimary,
@@ -112,8 +124,7 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
         threadQueues.emplace_back(THREAD_BUFFER_CAPACITY);
         renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this), i);
     }
-    presentationThread =
-            std::jthread(std::bind_front(&dragonfire::rendering::RenderingEngine::presentationThread, this));
+    presentationThread = std::jthread(std::bind_front(&dragonfire::rendering::RenderingEngine::present, this));
 }
 
 QueueFamilies::QueueFamilies(vk::PhysicalDevice device, vk::SurfaceKHR surface) {

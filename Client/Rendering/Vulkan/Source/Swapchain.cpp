@@ -4,6 +4,7 @@
 
 #include "Swapchain.h"
 #include <SDL_vulkan.h>
+#include <alloca.h>
 
 using namespace dragonfire::rendering;
 static vk::PresentModeKHR getPresentMode(vk::PhysicalDevice physicalDevice);
@@ -78,10 +79,19 @@ static vk::PresentModeKHR getPresentMode(vk::PhysicalDevice physicalDevice) {
 }
 
 static vk::SurfaceFormatKHR getSurfaceFormat(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) {
-    auto formats = physicalDevice.getSurfaceFormatsKHR(surface);
-    if (formats.empty())
+    uint32_t count;
+    vk::SurfaceFormatKHR* formats = nullptr;
+    vk::resultCheck(
+            physicalDevice.getSurfaceFormatsKHR(surface, &count, formats),
+            "Failed to get surface format count"
+    );
+    if (count == 0)
         throw std::runtime_error("No surface formats available");
-    for (const auto fmt : formats) {
+    formats = (vk::SurfaceFormatKHR*) alloca(sizeof(vk::SurfaceFormatKHR) * count);
+    vk::resultCheck(physicalDevice.getSurfaceFormatsKHR(surface, &count, formats), "Failed to get surface formats");
+
+    for (uint32_t i = 0; i < count; i++) {
+        auto& fmt = formats[i];
         if (fmt.format == vk::Format::eB8G8R8Srgb && fmt.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
             return fmt;
     }

@@ -10,6 +10,9 @@
 #include <barrier>
 #include <readerwritercircularbuffer.h>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <optional>
 
 namespace dragonfire::rendering {
 class RenderingEngine final : public IRenderEngine {
@@ -72,11 +75,19 @@ private:
 
 private:
     constexpr static int THREAD_BUFFER_CAPACITY = 16;
+    struct UBO {
+        glm::mat4 view;
+        glm::mat4 projection;
+    };
+
     struct Frame {
         vk::CommandBuffer cmd;
         vk::CommandPool primaryPool;
         std::vector<vk::CommandBuffer> secondaryBuffers;
         std::vector<vk::CommandPool> secondaryPools;
+        GPUObject<UBO> ubo;
+        vk::Fence fence;
+        vk::Semaphore presentSemaphore, renderSemaphore;
     } frames[FRAMES_IN_FLIGHT];
 
     /// \brief Gets the current frame in flight
@@ -90,7 +101,11 @@ private:
         const glm::mat4* transform = nullptr;
     };
 
-
+    struct PresentData {
+        Frame& frame;
+        uint32_t imageIndex;
+        PresentData(Frame& frame, uint32_t imageIndex) : frame(frame), imageIndex(imageIndex) {}
+    };
 
 private:
     std::atomic_uint64_t frameCount = 0;
@@ -101,11 +116,16 @@ private:
     vk::Queue graphicsQueue, presentationQueue;
     Mesh* lastRenderedMesh = nullptr;
     Material* lastRenderedMaterial = nullptr;
+
     std::barrier<> barrier;
     std::vector<std::jthread> renderThreads;
     std::vector<moodycamel::BlockingReaderWriterCircularBuffer<RenderCommand>> threadQueues;
-    std::jthread presentationThread;
 
-    //Swapchain swapchain;
+    std::jthread presentationThread;
+    std::mutex presentMutex;
+    std::condition_variable_any presentCond;
+    std::optional<PresentData> presentData;
+
+    Swapchain swapchain;
 };
 }   // namespace dragonfire::rendering

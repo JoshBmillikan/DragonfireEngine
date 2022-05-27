@@ -12,18 +12,43 @@ void RenderingEngine::beginRendering(const glm::mat4& view, const glm::mat4& pro
     lastRenderedMaterial = nullptr;
     lastRenderedMesh = nullptr;
     auto& frame = getCurrentFrame();
+    if (device.waitForFences(frame.fence, true, UINT64_MAX) != vk::Result::eSuccess)
+        spdlog::error("Main render fence wait failed");
+    device.resetFences(frame.fence);
+    frame.ubo->view = view;
+    frame.ubo->projection = projection;
     device.resetCommandPool(frame.primaryPool);
     for (auto pool : frame.secondaryPools)
         device.resetCommandPool(pool);
-    vk::CommandBufferBeginInfo beginInfo{
-
-    };
+    vk::CommandBufferBeginInfo beginInfo{.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
     frame.cmd.begin(beginInfo);
-    vk::RenderingInfo renderInfo{
+    for (auto i = 0; i < frame.secondaryBuffers.size(); i++) {
+        device.resetCommandPool(frame.secondaryPools[i]);
+        vk::CommandBufferInheritanceRenderingInfo renderingInfo{
+            //todo
+        };
 
+        vk::CommandBufferInheritanceInfo inheritanceInfo{
+                .pNext = &renderingInfo,
+                .renderPass = nullptr,
+                //todo
+        };
+
+        vk::CommandBufferBeginInfo begin2{
+                .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+                         | vk::CommandBufferUsageFlagBits::eRenderPassContinue,
+                .pInheritanceInfo = &inheritanceInfo,
+        };
+        frame.secondaryBuffers[i].begin(begin2);
+    }
+
+    vk::RenderingInfo renderInfo{
+            .flags = vk::RenderingFlagBits::eContentsSecondaryCommandBuffers,
+            .renderArea = vk::Rect2D{.offset = {0, 0}, .extent = swapchain.getExtent()},
+            //todo
     };
     frame.cmd.beginRendering(renderInfo);
-    for(auto& q : threadQueues)
+    for (auto& q : threadQueues)
         q.wait_enqueue(RenderCommand());
 }
 
@@ -33,7 +58,7 @@ void RenderingEngine::render(BaseMesh* meshPtr, IMaterial* materialPtr, const gl
     auto material = static_cast<Material*>(materialPtr);   // NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
     if (!(mesh == lastRenderedMesh || material == lastRenderedMaterial))
         currentThread = (currentThread + 1) % renderThreadCount;
-    RenderCommand command {
+    RenderCommand command{
             .state = RenderCommand::RenderState::Render,
             .mesh = mesh,
             .material = material,
@@ -46,7 +71,7 @@ void RenderingEngine::render(BaseMesh* meshPtr, IMaterial* materialPtr, const gl
 
 void RenderingEngine::endRendering() noexcept {
     auto& frame = getCurrentFrame();
-    for(auto cmd : frame.secondaryBuffers)
+    for (auto cmd : frame.secondaryBuffers)
         cmd.end();
     auto cmd = frame.cmd;
     cmd.executeCommands(frame.secondaryBuffers);
@@ -54,6 +79,12 @@ void RenderingEngine::endRendering() noexcept {
     cmd.end();
     frame.cmd.endRendering();
     frame.cmd.end();
+
+    std::unique_lock lock(presentMutex);
+    assert(!presentData.has_value());
+    presentData.emplace(frame, swapchain.getImageIndex());
+    lock.unlock();
+    presentCond.notify_one();
     frameCount++;
 }
 
@@ -86,7 +117,7 @@ void RenderingEngine::renderThread(const std::stop_token& token, const uint32_t 
 
                 if (material != lastMaterial) {
                     lastMaterial = material;
-                    //todo bind material
+                    material->bind(cmd);
                 }
 
                 cmd.drawIndexed(mesh->indices.size(), 1, 0, mesh->vertexOffset, 0);
@@ -102,13 +133,46 @@ void RenderingEngine::renderThread(const std::stop_token& token, const uint32_t 
     }
 }
 
-void RenderingEngine::present(const std::stop_token& token) noexcept {}
+void RenderingEngine::present(const std::stop_token& token) noexcept {
+    while (!token.stop_requested()) {
+        std::unique_lock lock(presentMutex);
+        presentCond.wait(lock, token, [&] { return presentData.has_value(); });
+        if (token.stop_requested())
+            break;
+
+        vk::SubmitInfo submitInfo{
+                .waitSemaphoreCount = 1,
+                .pWaitSemaphores = &presentData->frame.presentSemaphore,
+                .commandBufferCount = 1,
+                .pCommandBuffers = &presentData->frame.cmd,
+                .signalSemaphoreCount = 1,
+                .pSignalSemaphores = &presentData->frame.renderSemaphore,
+        };
+
+        uint32_t index = presentData->imageIndex;
+        vk::PresentInfoKHR presentInfo{
+                .waitSemaphoreCount = 1,
+                .pWaitSemaphores = &presentData->frame.renderSemaphore,
+                .swapchainCount = 1,
+                .pSwapchains = &*swapchain,
+                .pImageIndices = &index,
+        };
+        presentData.reset();
+        lock.unlock();
+        graphicsQueue.submit(submitInfo);
+        if (presentationQueue.presentKHR(presentInfo) != vk::Result::eSuccess) {
+            spdlog::error("Swapchain presentation failed");
+            //todo handle this
+        };
+    }
+}
 
 RenderingEngine::~RenderingEngine() {
     for (auto& thread : renderThreads)
         thread.request_stop();
     for (auto& q : threadQueues)
         q.wait_enqueue(RenderCommand{.state = RenderCommand::RenderState::End});
+    presentationThread.request_stop();
     barrier.arrive_and_drop();
     renderThreads.clear();
     Allocation::destroyAllocator();

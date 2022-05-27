@@ -83,11 +83,17 @@ public:
         : Buffer(
                 vk::BufferCreateInfo{
                         .size = sizeof(T),
+                        .usage = vk::BufferUsageFlagBits::eUniformBuffer
                 },
                 VmaAllocationCreateInfo{
-
+                        .flags = VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_MAPPED_BIT,
+                        .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+                        .requiredFlags = (VkMemoryPropertyFlags) (vk::MemoryPropertyFlagBits::eHostVisible
+                                         | vk::MemoryPropertyFlagBits::eHostCoherent),
+                        .priority = 1,
                 }
         ) {}
     T& operator*() noexcept { return *reinterpret_cast<T*>(info.pMappedData); }
+    T* operator ->() noexcept {return reinterpret_cast<T*>(info.pMappedData);}
 };
 }   // namespace dragonfire::rendering

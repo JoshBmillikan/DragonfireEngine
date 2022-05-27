@@ -7,6 +7,7 @@
     <mapping directory="$PROJECT_DIR$/ThirdParty/Json" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/Lz4" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/Re2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ThirdParty/ReaderWriterQueue" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/SDL" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/SPIRV-Reflect" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/ThirdParty/SQLiteCpp" vcs="Git" />
