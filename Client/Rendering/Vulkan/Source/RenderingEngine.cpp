@@ -7,7 +7,7 @@
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 using namespace dragonfire::rendering;
-
+/// Waits for render fences and starts rendering using the dynamic rendering extension
 void RenderingEngine::beginRendering(const glm::mat4& view, const glm::mat4& projection) noexcept {
     lastRenderedMaterial = nullptr;
     lastRenderedMesh = nullptr;
@@ -34,13 +34,12 @@ void RenderingEngine::beginRendering(const glm::mat4& view, const glm::mat4& pro
             .clearValue = clearValue,
     };
 
-
     for (auto i = 0; i < frame.secondaryBuffers.size(); i++) {
         device.resetCommandPool(frame.secondaryPools[i]);
         vk::CommandBufferInheritanceRenderingInfo renderingInfo{
                 .colorAttachmentCount = 1,
                 .pColorAttachmentFormats = &surfaceFormat.format,
-                // todo depth buf, view mask
+                // todo depth buffer, view mask
         };
 
         vk::CommandBufferInheritanceInfo inheritanceInfo{
@@ -73,6 +72,9 @@ void RenderingEngine::render(BaseMesh* meshPtr, IMaterial* materialPtr, const gl
     static uint32_t currentThread = 0;
     auto mesh = static_cast<Mesh*>(meshPtr);               // NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
     auto material = static_cast<Material*>(materialPtr);   // NOLINT(cppcoreguidelines-pro-type-static-cast-downcast)
+
+    // If the mesh or material is the same as the last one, use the same thread to allow for
+    // batching/better resource usage, otherwise distribute work in a round-robin style
     if (!(mesh == lastRenderedMesh || material == lastRenderedMaterial))
         currentThread = (currentThread + 1) % renderThreadCount;
     RenderCommand command{
@@ -87,6 +89,7 @@ void RenderingEngine::render(BaseMesh* meshPtr, IMaterial* materialPtr, const gl
 }
 
 void RenderingEngine::endRendering() noexcept {
+    barrier.arrive_and_wait();
     auto& frame = getCurrentFrame();
     for (auto cmd : frame.secondaryBuffers)
         cmd.end();
@@ -185,6 +188,10 @@ void RenderingEngine::present(const std::stop_token& token) noexcept {
     }
 }
 
+void RenderingEngine::resize(uint32_t width, uint32_t height) {
+    spdlog::info("Resized window to {}x{}", width, height);
+}
+
 RenderingEngine::~RenderingEngine() {
     for (auto& thread : renderThreads)
         thread.request_stop();
@@ -211,10 +218,6 @@ RenderingEngine::~RenderingEngine() {
     device.destroy();
     instance.destroy(surface);
     instance.destroy();
-}
-
-void RenderingEngine::resize(uint32_t width, uint32_t height) {
-    spdlog::info("Resized window to {}x{}", width, height);
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL RenderingEngine::debugCallback(
