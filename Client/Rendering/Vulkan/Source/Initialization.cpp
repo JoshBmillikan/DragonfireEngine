@@ -189,7 +189,16 @@ static bool isValidDevice(
         const std::vector<const char*>& requestedExtensions
 ) {
     // auto props = device.getProperties();
-    // auto features = device.getFeatures();
+    vk::PhysicalDeviceImagelessFramebufferFeatures imagelessFeatures;
+    vk::PhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures;
+    imagelessFeatures.pNext = &dynamicRenderingFeatures;
+    vk::PhysicalDeviceFeatures2 features;
+    features.pNext = &imagelessFeatures;
+    device.getFeatures2(&features);
+    if (!imagelessFeatures.imagelessFramebuffer)
+        return false;
+    if (!dynamicRenderingFeatures.dynamicRendering)
+        return false;
 
     // check if device supports all requested extensions
     vk::ExtensionProperties* extProps = nullptr;
