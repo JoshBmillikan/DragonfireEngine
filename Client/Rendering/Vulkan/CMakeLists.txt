@@ -1,5 +1,5 @@
 
-add_library(VulkanRendering STATIC Source/RenderingEngine.cpp Source/RenderingEngine.h Source/Interface.cpp Source/Initialization.cpp Source/Macros.h Source/Material.cpp Source/Material.h Source/Mesh.cpp Source/Mesh.h Source/Allocation.cpp Source/Allocation.h Source/Shader.cpp Source/Shader.h Source/Swapchain.cpp Source/Swapchain.h)
+add_library(VulkanRendering STATIC Source/RenderingEngine.cpp Source/RenderingEngine.h Source/Interface.cpp Source/Initialization.cpp Source/Macros.h Source/Material.cpp Source/Material.h Source/Mesh.cpp Source/Mesh.h Source/Allocation.cpp Source/Allocation.h Source/Shader.cpp Source/Shader.h)
 
 find_package(Vulkan REQUIRED)
 target_link_libraries(VulkanRendering PRIVATE Rendering spdlog::spdlog Vulkan::Headers VulkanMemoryAllocator Engine readerwriterqueue)

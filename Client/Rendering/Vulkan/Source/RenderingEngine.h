@@ -5,7 +5,6 @@
 #pragma once
 #include "Material.h"
 #include "Mesh.h"
-#include "Swapchain.h"
 #include <Interface.h>
 #include <barrier>
 #include <readerwritercircularbuffer.h>
@@ -116,6 +115,8 @@ private:
     vk::Queue graphicsQueue, presentationQueue;
     Mesh* lastRenderedMesh = nullptr;
     Material* lastRenderedMaterial = nullptr;
+    vk::SurfaceFormatKHR surfaceFormat;
+    const vk::ClearValue clearValue = {{std::array{0.0f, 0.0f, 0.0f, 1.0f}}};
 
     std::barrier<> barrier;
     std::vector<std::jthread> renderThreads;
@@ -126,6 +127,10 @@ private:
     std::condition_variable_any presentCond;
     std::optional<PresentData> presentData;
 
-    Swapchain swapchain;
+    vk::SwapchainKHR swapchain;
+    vk::Extent2D swapchainExtent;
+    uint32_t currentImageIndex = 0;
+    std::vector<vk::Image> images;
+    std::vector<vk::ImageView> views;
 };
 }   // namespace dragonfire::rendering

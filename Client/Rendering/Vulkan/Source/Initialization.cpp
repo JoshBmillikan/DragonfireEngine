@@ -45,6 +45,25 @@ struct QueueFamilies {
     [[nodiscard]] inline bool isUnified() const noexcept { return graphicsIndex == presentationIndex; }
 };
 
+static std::tuple<vk::SwapchainKHR, vk::Extent2D> createSwapchain(
+        vk::Device device,
+        vk::PhysicalDevice physicalDevice,
+        vk::SurfaceKHR surface,
+        uint32_t graphicsIndex,
+        uint32_t presentIndex,
+        SDL_Window* window,
+        vk::SurfaceFormatKHR fmt,
+        vk::SwapchainKHR old = nullptr
+);
+
+static void createSwapchainImages(
+        std::vector<vk::Image>& images,
+        std::vector<vk::ImageView>& views,
+        vk::Device device,
+        vk::SwapchainKHR swapchain,
+        vk::SurfaceFormatKHR fmt
+);
+
 /// \brief Creates the logical vulkan device handle
 /// \param physicalDevice The physical device to create the logical device for
 /// \param extensions Vector of device extensions to enable
@@ -55,6 +74,8 @@ static vk::Device createDevice(
         const std::vector<const char*>& extensions,
         const QueueFamilies& queueFamilies
 );
+
+static vk::SurfaceFormatKHR getSurfaceFormat(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface);
 
 dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool validation)
     : barrier(renderThreadCount + 1) {
@@ -75,15 +96,20 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
 
     graphicsQueue = device.getQueue(queueFamilies.graphicsIndex, 0);
     presentationQueue = device.getQueue(queueFamilies.presentationIndex, 0);
+    surfaceFormat = getSurfaceFormat(physicalDevice, surface);
 
-    swapchain = Swapchain(
+    auto [chain, extent] = createSwapchain(
             device,
             physicalDevice,
             surface,
             queueFamilies.graphicsIndex,
             queueFamilies.presentationIndex,
-            window
+            window,
+            surfaceFormat
     );
+    swapchain = chain;
+    swapchainExtent = extent;
+    createSwapchainImages(images, views, device, swapchain, surfaceFormat);
 
     // init per frame data
     for (auto& frame : frames) {
@@ -125,6 +151,122 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
         renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this), i);
     }
     presentationThread = std::jthread(std::bind_front(&dragonfire::rendering::RenderingEngine::present, this));
+}
+
+static void createSwapchainImages(
+        std::vector<vk::Image>& images,
+        std::vector<vk::ImageView>& views,
+        vk::Device device,
+        vk::SwapchainKHR swapchain,
+        vk::SurfaceFormatKHR fmt
+) {
+    images = device.getSwapchainImagesKHR(swapchain);
+    views.reserve(images.size());
+    for (auto& image : images) {
+        vk::ImageSubresourceRange subresourceRange{
+                .aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+        };
+        vk::ImageViewCreateInfo createInfo{
+                .image = image,
+                .viewType = vk::ImageViewType::e2D,
+                .format = fmt.format,
+                .components = vk::ComponentMapping {
+                        .r = vk::ComponentSwizzle::eIdentity,
+                        .g = vk::ComponentSwizzle::eIdentity,
+                        .b = vk::ComponentSwizzle::eIdentity,
+                        .a = vk::ComponentSwizzle::eIdentity,
+                },
+                .subresourceRange = subresourceRange,
+        };
+        views.push_back(device.createImageView(createInfo));
+    }
+}
+
+static vk::PresentModeKHR getPresentMode(vk::PhysicalDevice physicalDevice) {
+    auto modes = physicalDevice.getSurfacePresentModesKHR();
+    for (const auto mode : modes) {
+        if (mode == vk::PresentModeKHR::eMailbox) {
+            spdlog::info("Using mailbox presentation mode");
+            return mode;
+        }
+    }
+    spdlog::info("Using FIFO presentation mode");
+    return vk::PresentModeKHR::eFifo;
+}
+
+static vk::SurfaceFormatKHR getSurfaceFormat(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) {
+    uint32_t count;
+    vk::SurfaceFormatKHR* formats = nullptr;
+    vk::resultCheck(
+            physicalDevice.getSurfaceFormatsKHR(surface, &count, formats),
+            "Failed to get surface format count"
+    );
+    if (count == 0)
+        throw std::runtime_error("No surface formats available");
+    formats = (vk::SurfaceFormatKHR*) alloca(sizeof(vk::SurfaceFormatKHR) * count);
+    vk::resultCheck(physicalDevice.getSurfaceFormatsKHR(surface, &count, formats), "Failed to get surface formats");
+
+    for (uint32_t i = 0; i < count; i++) {
+        auto& fmt = formats[i];
+        if (fmt.format == vk::Format::eB8G8R8Srgb && fmt.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+            return fmt;
+    }
+    spdlog::warn(
+            "Preferred surface format not found, using format: {}, color space: {} instead",
+            to_string(formats[0].format),
+            to_string(formats[0].colorSpace)
+    );
+    return formats[0];
+}
+
+static std::tuple<vk::SwapchainKHR, vk::Extent2D> createSwapchain(
+        vk::Device device,
+        vk::PhysicalDevice physicalDevice,
+        vk::SurfaceKHR surface,
+        uint32_t graphicsIndex,
+        uint32_t presentIndex,
+        SDL_Window* window,
+        vk::SurfaceFormatKHR fmt,
+        vk::SwapchainKHR old
+) {
+    auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+    vk::Extent2D extent;
+    if (capabilities.currentExtent.width == 0xFFFFFFFF) {
+        int width, height;
+        SDL_Vulkan_GetDrawableSize(window, &width, &height);
+        extent.width = width;
+        extent.height = height;
+    }
+    else
+        extent = capabilities.currentExtent;
+
+    uint32_t imageCount = capabilities.maxImageCount == 0
+                                  ? capabilities.minImageCount + 1
+                                  : std::min(capabilities.minImageCount + 1, capabilities.maxImageCount);
+
+    vk::SharingMode sharingMode =
+            graphicsIndex == presentIndex ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
+
+    uint32_t indices[] = {graphicsIndex, presentIndex};
+    vk::SwapchainCreateInfoKHR createInfo{
+            .surface = surface,
+            .minImageCount = imageCount,
+            .imageFormat = fmt.format,
+            .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+            .imageSharingMode = sharingMode,
+            .queueFamilyIndexCount = 2,
+            .pQueueFamilyIndices = indices,
+            .preTransform = capabilities.currentTransform,
+            .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+            .presentMode = getPresentMode(physicalDevice),
+            .oldSwapchain = old,
+    };
+
+    return std::make_tuple(device.createSwapchainKHR(createInfo), extent);
 }
 
 QueueFamilies::QueueFamilies(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
@@ -189,14 +331,10 @@ static bool isValidDevice(
         const std::vector<const char*>& requestedExtensions
 ) {
     // auto props = device.getProperties();
-    vk::PhysicalDeviceImagelessFramebufferFeatures imagelessFeatures;
     vk::PhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures;
-    imagelessFeatures.pNext = &dynamicRenderingFeatures;
     vk::PhysicalDeviceFeatures2 features;
-    features.pNext = &imagelessFeatures;
+    features.pNext = &dynamicRenderingFeatures;
     device.getFeatures2(&features);
-    if (!imagelessFeatures.imagelessFramebuffer)
-        return false;
     if (!dynamicRenderingFeatures.dynamicRendering)
         return false;
 
@@ -254,16 +392,14 @@ static vk::PhysicalDevice getPhysicalDevice(
     for (const char* ext : deviceExtensions)
         spdlog::info("Loading device extension {}", ext);
 
-    vk::PhysicalDevice found = nullptr, valid = nullptr;
+    vk::PhysicalDevice valid = nullptr;
     for (uint32_t i = 0; i < size; i++) {
         if (isValidDevice(devices[i], surface, deviceExtensions)) {
             valid = devices[i];
             if (devices[i].getProperties().deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
-                found = devices[i];
+                return devices[i];
         }
     }
-    if (found)
-        return found;
 
     if (valid) {
         spdlog::warn("No discrete GPU found, falling back to integrated gpu");

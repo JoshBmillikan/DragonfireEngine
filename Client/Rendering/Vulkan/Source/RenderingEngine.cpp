@@ -15,6 +15,9 @@ void RenderingEngine::beginRendering(const glm::mat4& view, const glm::mat4& pro
     if (device.waitForFences(frame.fence, true, UINT64_MAX) != vk::Result::eSuccess)
         spdlog::error("Main render fence wait failed");
     device.resetFences(frame.fence);
+    auto [result, index] = device.acquireNextImageKHR(swapchain, UINT64_MAX, frame.presentSemaphore);
+    vk::resultCheck(result, "Failed to acquire next swapchain image");
+    currentImageIndex = index;
     frame.ubo->view = view;
     frame.ubo->projection = projection;
     device.resetCommandPool(frame.primaryPool);
@@ -22,16 +25,28 @@ void RenderingEngine::beginRendering(const glm::mat4& view, const glm::mat4& pro
         device.resetCommandPool(pool);
     vk::CommandBufferBeginInfo beginInfo{.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
     frame.cmd.begin(beginInfo);
+
+    vk::RenderingAttachmentInfo attachmentInfo {
+            .imageView = views[currentImageIndex],
+            .imageLayout = vk::ImageLayout::eAttachmentOptimal,
+            .loadOp = vk::AttachmentLoadOp::eClear,
+            .storeOp = vk::AttachmentStoreOp::eStore,
+            .clearValue = clearValue,
+    };
+
+
     for (auto i = 0; i < frame.secondaryBuffers.size(); i++) {
         device.resetCommandPool(frame.secondaryPools[i]);
         vk::CommandBufferInheritanceRenderingInfo renderingInfo{
-            //todo
+                .colorAttachmentCount = 1,
+                .pColorAttachmentFormats = &surfaceFormat.format,
+                // todo depth buf, view mask
         };
 
         vk::CommandBufferInheritanceInfo inheritanceInfo{
                 .pNext = &renderingInfo,
                 .renderPass = nullptr,
-                //todo
+                .framebuffer = nullptr,
         };
 
         vk::CommandBufferBeginInfo begin2{
@@ -44,8 +59,10 @@ void RenderingEngine::beginRendering(const glm::mat4& view, const glm::mat4& pro
 
     vk::RenderingInfo renderInfo{
             .flags = vk::RenderingFlagBits::eContentsSecondaryCommandBuffers,
-            .renderArea = vk::Rect2D{.offset = {0, 0}, .extent = swapchain.getExtent()},
-            //todo
+            .renderArea = vk::Rect2D{.offset = {0, 0}, .extent = swapchainExtent},
+            .layerCount = 1,
+            .colorAttachmentCount = 1,
+            .pColorAttachments = &attachmentInfo,
     };
     frame.cmd.beginRendering(renderInfo);
     for (auto& q : threadQueues)
@@ -82,7 +99,7 @@ void RenderingEngine::endRendering() noexcept {
 
     std::unique_lock lock(presentMutex);
     assert(!presentData.has_value());
-    presentData.emplace(frame, swapchain.getImageIndex());
+    presentData.emplace(frame, currentImageIndex);
     lock.unlock();
     presentCond.notify_one();
     frameCount++;
@@ -154,11 +171,12 @@ void RenderingEngine::present(const std::stop_token& token) noexcept {
                 .waitSemaphoreCount = 1,
                 .pWaitSemaphores = &presentData->frame.renderSemaphore,
                 .swapchainCount = 1,
-                .pSwapchains = &*swapchain,
+                .pSwapchains = &swapchain,
                 .pImageIndices = &index,
         };
         presentData.reset();
         lock.unlock();
+
         graphicsQueue.submit(submitInfo);
         if (presentationQueue.presentKHR(presentInfo) != vk::Result::eSuccess) {
             spdlog::error("Swapchain presentation failed");
@@ -173,8 +191,22 @@ RenderingEngine::~RenderingEngine() {
     for (auto& q : threadQueues)
         q.wait_enqueue(RenderCommand{.state = RenderCommand::RenderState::End});
     presentationThread.request_stop();
+    presentationThread.join();
     barrier.arrive_and_drop();
     renderThreads.clear();
+
+    for (auto& frame : frames) {
+        device.destroy(frame.primaryPool);
+        device.destroy(frame.fence);
+        device.destroy(frame.presentSemaphore);
+        device.destroy(frame.renderSemaphore);
+        for (auto pool : frame.secondaryPools)
+            device.destroy(pool);
+    }
+
+    for(auto& view : views)
+        device.destroy(view);
+    device.destroy(swapchain);
     Allocation::destroyAllocator();
     device.destroy();
     instance.destroy(surface);
