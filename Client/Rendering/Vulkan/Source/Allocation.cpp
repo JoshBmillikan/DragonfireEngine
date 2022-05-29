@@ -41,6 +41,7 @@ void Allocation::initAllocator(
     functions.vkGetDeviceImageMemoryRequirements = loader.vkGetDeviceImageMemoryRequirements;
 
     VmaAllocatorCreateInfo createInfo{
+            .flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT,
             .physicalDevice = physicalDevice,
             .device = device,
             .pVulkanFunctions = &functions,
@@ -51,4 +52,23 @@ void Allocation::initAllocator(
     if (vmaCreateAllocator(&createInfo, &Allocation::allocator) != VK_SUCCESS)
         throw std::runtime_error("Failed to create vma allocator");
 }
+
+Buffer::Buffer(Buffer&& other) noexcept {
+    buffer = other.buffer;
+    allocation = other.allocation;
+    info = other.info;
+    other.buffer = nullptr;
+}
+
+Buffer& Buffer::operator=(Buffer&& other) noexcept {
+    if (this != &other) {
+        reset();
+        buffer = other.buffer;
+        allocation = other.allocation;
+        info = other.info;
+        other.buffer = nullptr;
+    }
+    return *this;
+}
+
 }   // namespace dragonfire::rendering

@@ -55,20 +55,19 @@ class Buffer : public Allocation {
 public:
     Buffer() = default;
     Buffer(const vk::BufferCreateInfo& createInfo, const VmaAllocationCreateInfo& allocInfo) {
-        vmaCreateBuffer(
+        if (vmaCreateBuffer(
                 allocator,
                 reinterpret_cast<const VkBufferCreateInfo*>(&createInfo),
                 &allocInfo,
                 reinterpret_cast<VkBuffer*>(&buffer),
                 &allocation,
                 &info
-        );
+        ) != VK_SUCCESS)
+            throw std::runtime_error("VMA failed to create buffer");
     }
 
     ~Buffer() noexcept override {
-        if (buffer)
-            vmaDestroyBuffer(allocator, buffer, allocation);
-        buffer = nullptr;
+        reset();
     };
 
     void reset() noexcept {
@@ -78,6 +77,11 @@ public:
     }
 
     operator vk::Buffer() noexcept { return buffer; }
+
+    Buffer(Buffer&& other) noexcept;
+    Buffer& operator =(Buffer&& other) noexcept;
+    Buffer(Buffer& other) = delete;
+    Buffer& operator =(Buffer& other) = delete;
 };
 
 class Image : public Allocation {

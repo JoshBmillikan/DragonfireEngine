@@ -88,6 +88,7 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     std::vector<const char*> deviceExtensions = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
             VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+            VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
     };
     physicalDevice = getPhysicalDevice(instance, surface, deviceExtensions);
     spdlog::info("Using GPU {}", physicalDevice.getProperties().deviceName);

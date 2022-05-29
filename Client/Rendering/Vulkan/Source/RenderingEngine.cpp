@@ -206,13 +206,13 @@ RenderingEngine::~RenderingEngine() {
 
     device.destroy(utilityPool);
     for (auto& frame : frames) {
+        frame.ubo.reset();
         device.destroy(frame.primaryPool);
         device.destroy(frame.fence);
         device.destroy(frame.presentSemaphore);
         device.destroy(frame.renderSemaphore);
         for (auto pool : frame.secondaryPools)
             device.destroy(pool);
-        frame.ubo.reset();
     }
 
     for(auto& view : views)
