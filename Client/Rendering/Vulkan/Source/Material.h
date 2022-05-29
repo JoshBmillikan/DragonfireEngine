@@ -21,8 +21,10 @@ public:
 class MaterialFactory {
     vk::PipelineCache cache;
     vk::Device device;
+    vk::Format format;
     SQLite::Database db;
     std::unordered_map<std::string, std::weak_ptr<Material>> materials;
+    vk::Pipeline createPipeline(const std::string& materialName);
 public:
     explicit MaterialFactory(vk::Device device);
     ~MaterialFactory() noexcept;

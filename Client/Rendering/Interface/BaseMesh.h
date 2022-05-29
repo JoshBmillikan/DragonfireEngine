@@ -12,5 +12,6 @@ struct Vertex {
 struct BaseMesh : Asset {
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
+    BaseMesh(std::vector<Vertex>&& vertices, std::vector<uint32_t>&& indices) : vertices(vertices), indices(indices) {}
 };
 }

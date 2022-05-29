@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <spirv_reflect.h>
 #include <string>
 #include <vector>
 
@@ -37,15 +36,12 @@ static void uploadFile(SQLite::Database& db, const fs::path& path) {
     std::ifstream stream(path, std::ios::in | std::ios::binary);
     std::vector<unsigned char> data((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
     stream.close();
-    SQLite::Statement stmt(db, "INSERT OR REPLACE INTO shader (name, stage_flag, spv) VALUES (?, ?, ?);");
+    SQLite::Statement stmt(db, "INSERT OR REPLACE INTO shader (name, spv, spv_size) VALUES (?, ?, ?);");
     auto name = getName(path);
     stmt.bind(1, name);
 
-    spv_reflect::ShaderModule module(data);
-    auto stage = module.GetShaderStage();
-    stmt.bind(2, stage);
-
-    stmt.bind(3, data.data(), (int)data.size());
+    stmt.bind(2, data.data(), (int)data.size());
+    stmt.bind(3, static_cast<int64_t>(data.size() / sizeof(uint32_t)));
     // todo other stuff
     stmt.exec();
 }

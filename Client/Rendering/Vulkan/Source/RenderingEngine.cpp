@@ -140,7 +140,7 @@ void RenderingEngine::renderThread(const std::stop_token& token, const uint32_t 
                     material->bind(cmd);
                 }
 
-                cmd.drawIndexed(mesh->indices.size(), 1, 0, mesh->vertexOffset, 0);
+                cmd.drawIndexed(mesh->indices.size(), 1, 0, 0, 0);
 
             } break;
             case RenderCommand::RenderState::End:
@@ -184,15 +184,17 @@ void RenderingEngine::present(const std::stop_token& token) noexcept {
         if (presentationQueue.presentKHR(presentInfo) != vk::Result::eSuccess) {
             spdlog::error("Swapchain presentation failed");
             //todo handle this
-        };
+        }
     }
 }
 
 void RenderingEngine::resize(uint32_t width, uint32_t height) {
     spdlog::info("Resized window to {}x{}", width, height);
+    // todo
 }
 
 RenderingEngine::~RenderingEngine() {
+    device.waitIdle();
     for (auto& thread : renderThreads)
         thread.request_stop();
     for (auto& q : threadQueues)
@@ -202,6 +204,7 @@ RenderingEngine::~RenderingEngine() {
     barrier.arrive_and_drop();
     renderThreads.clear();
 
+    device.destroy(utilityPool);
     for (auto& frame : frames) {
         device.destroy(frame.primaryPool);
         device.destroy(frame.fence);

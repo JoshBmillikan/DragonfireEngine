@@ -111,10 +111,15 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     swapchainExtent = extent;
     createSwapchainImages(images, views, device, swapchain, surfaceFormat);
 
+    vk::CommandPoolCreateInfo poolInfo {
+            .flags = vk::CommandPoolCreateFlagBits::eTransient,
+            .queueFamilyIndex = queueFamilies.graphicsIndex
+    };
+    utilityPool = device.createCommandPool(poolInfo);
+
     // init per frame data
     for (auto& frame : frames) {
         vk::CommandPoolCreateInfo createInfo{
-                .flags = vk::CommandPoolCreateFlagBits::eTransient,
                 .queueFamilyIndex = queueFamilies.graphicsIndex,
         };
         auto primaryPool = device.createCommandPool(createInfo);

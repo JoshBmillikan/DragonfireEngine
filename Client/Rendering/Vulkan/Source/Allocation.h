@@ -45,12 +45,15 @@ public:
     }
 
     void unmap() const noexcept { vmaUnmapMemory(allocator, allocation); }
+
+    VmaAllocationInfo& getInfo() noexcept {return info;}
 };
 
 class Buffer : public Allocation {
     vk::Buffer buffer;
 
 public:
+    Buffer() = default;
     Buffer(const vk::BufferCreateInfo& createInfo, const VmaAllocationCreateInfo& allocInfo) {
         vmaCreateBuffer(
                 allocator,

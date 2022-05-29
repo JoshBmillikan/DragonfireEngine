@@ -117,6 +117,7 @@ private:
     Material* lastRenderedMaterial = nullptr;
     vk::SurfaceFormatKHR surfaceFormat;
     const vk::ClearValue clearValue = {{std::array{0.0f, 0.0f, 0.0f, 1.0f}}};
+    vk::CommandPool utilityPool;
 
     std::barrier<> barrier;
     std::vector<std::jthread> renderThreads;
