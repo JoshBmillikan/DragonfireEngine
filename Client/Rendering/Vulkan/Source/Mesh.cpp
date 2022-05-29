@@ -33,7 +33,6 @@ dragonfire::rendering::Mesh::Mesh(
     memcpy(ptr + vertSize, this->indices.data(), indicesSize);
     staging.unmap();
     vk::BufferCopy vertexCpy = {
-
             .srcOffset = 0,
             .dstOffset = 0,
             .size = vertSize,

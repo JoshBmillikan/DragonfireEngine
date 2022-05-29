@@ -212,6 +212,7 @@ RenderingEngine::~RenderingEngine() {
         device.destroy(frame.renderSemaphore);
         for (auto pool : frame.secondaryPools)
             device.destroy(pool);
+        frame.ubo.reset();
     }
 
     for(auto& view : views)

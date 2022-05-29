@@ -50,7 +50,7 @@ public:
 };
 
 class Buffer : public Allocation {
-    vk::Buffer buffer;
+    vk::Buffer buffer = nullptr;
 
 public:
     Buffer() = default;
@@ -65,7 +65,17 @@ public:
         );
     }
 
-    ~Buffer() noexcept override { vmaDestroyBuffer(allocator, buffer, allocation); };
+    ~Buffer() noexcept override {
+        if (buffer)
+            vmaDestroyBuffer(allocator, buffer, allocation);
+        buffer = nullptr;
+    };
+
+    void reset() noexcept {
+        if (buffer)
+            vmaDestroyBuffer(allocator, buffer, allocation);
+        buffer = nullptr;
+    }
 
     operator vk::Buffer() noexcept { return buffer; }
 };
@@ -82,11 +92,13 @@ public:
 template<typename T>
 class GPUObject : public Buffer {
 public:
-    GPUObject()
+    GPUObject() = default;
+    GPUObject(vk::BufferUsageFlagBits usage)
         : Buffer(
                 vk::BufferCreateInfo{
                         .size = sizeof(T),
-                        .usage = vk::BufferUsageFlagBits::eUniformBuffer
+                        .usage = usage,
+                        .sharingMode = vk::SharingMode::eExclusive,
                 },
                 VmaAllocationCreateInfo{
                         .flags = VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_MAPPED_BIT,

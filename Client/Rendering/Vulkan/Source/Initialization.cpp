@@ -83,6 +83,7 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     // basic vulkan initialization
     instance = createInstance(window, validation ? RenderingEngine::debugCallback : nullptr);
     surface = createSurface(window, instance);
+    assert(surface);
 
     std::vector<const char*> deviceExtensions = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
@@ -111,10 +112,9 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
     swapchainExtent = extent;
     createSwapchainImages(images, views, device, swapchain, surfaceFormat);
 
-    vk::CommandPoolCreateInfo poolInfo {
+    vk::CommandPoolCreateInfo poolInfo{
             .flags = vk::CommandPoolCreateFlagBits::eTransient,
-            .queueFamilyIndex = queueFamilies.graphicsIndex
-    };
+            .queueFamilyIndex = queueFamilies.graphicsIndex};
     utilityPool = device.createCommandPool(poolInfo);
 
     // init per frame data
@@ -129,15 +129,16 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
                 .commandBufferCount = 1,
         };
         std::vector<vk::CommandPool> pools(renderThreadCount);
-        for (auto& pool : frame.secondaryPools)
+        for (auto& pool : pools)
             pool = device.createCommandPool(createInfo);
         std::vector<vk::CommandBuffer> buffers(renderThreadCount);
         for (int i = 0; i < renderThreadCount; i++) {
             vk::CommandBufferAllocateInfo secondaryAlloc{
-                    .commandPool = frame.secondaryPools[i],
-                    .level = vk::CommandBufferLevel::ePrimary,
+                    .commandPool = pools[i],
+                    .level = vk::CommandBufferLevel::eSecondary,
                     .commandBufferCount = 1,
             };
+
             buffers[i] = device.allocateCommandBuffers(secondaryAlloc)[0];
         }
         frame = Frame{
@@ -145,6 +146,10 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
                 .primaryPool = primaryPool,
                 .secondaryBuffers = std::move(buffers),
                 .secondaryPools = std::move(pools),
+                .ubo = GPUObject<UBO>(vk::BufferUsageFlagBits::eUniformBuffer),
+                .fence = device.createFence(vk::FenceCreateInfo()),
+                .presentSemaphore = device.createSemaphore(vk::SemaphoreCreateInfo()),
+                .renderSemaphore = device.createSemaphore(vk::SemaphoreCreateInfo()),
         };
     }
 
@@ -156,6 +161,8 @@ dragonfire::rendering::RenderingEngine::RenderingEngine(SDL_Window* window, bool
         renderThreads.emplace_back(std::bind_front(&dragonfire::rendering::RenderingEngine::renderThread, this), i);
     }
     presentationThread = std::jthread(std::bind_front(&dragonfire::rendering::RenderingEngine::present, this));
+
+    spdlog::info("Rendering engine initialization finished");
 }
 
 static void createSwapchainImages(
@@ -179,20 +186,21 @@ static void createSwapchainImages(
                 .image = image,
                 .viewType = vk::ImageViewType::e2D,
                 .format = fmt.format,
-                .components = vk::ComponentMapping {
-                        .r = vk::ComponentSwizzle::eIdentity,
-                        .g = vk::ComponentSwizzle::eIdentity,
-                        .b = vk::ComponentSwizzle::eIdentity,
-                        .a = vk::ComponentSwizzle::eIdentity,
-                },
+                .components =
+                        vk::ComponentMapping{
+                                .r = vk::ComponentSwizzle::eIdentity,
+                                .g = vk::ComponentSwizzle::eIdentity,
+                                .b = vk::ComponentSwizzle::eIdentity,
+                                .a = vk::ComponentSwizzle::eIdentity,
+                        },
                 .subresourceRange = subresourceRange,
         };
         views.push_back(device.createImageView(createInfo));
     }
 }
 
-static vk::PresentModeKHR getPresentMode(vk::PhysicalDevice physicalDevice) {
-    auto modes = physicalDevice.getSurfacePresentModesKHR();
+static vk::PresentModeKHR getPresentMode(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface) {
+    auto modes = physicalDevice.getSurfacePresentModesKHR(surface);
     for (const auto mode : modes) {
         if (mode == vk::PresentModeKHR::eMailbox) {
             spdlog::info("Using mailbox presentation mode");
@@ -240,7 +248,7 @@ static std::tuple<vk::SwapchainKHR, vk::Extent2D> createSwapchain(
 ) {
     auto capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
     vk::Extent2D extent;
-    if (capabilities.currentExtent.width == 0xFFFFFFFF) {
+    if (capabilities.currentExtent.width == UINT32_MAX) {
         int width, height;
         SDL_Vulkan_GetDrawableSize(window, &width, &height);
         extent.width = width;
@@ -261,13 +269,15 @@ static std::tuple<vk::SwapchainKHR, vk::Extent2D> createSwapchain(
             .surface = surface,
             .minImageCount = imageCount,
             .imageFormat = fmt.format,
+            .imageExtent = extent,
+            .imageArrayLayers = 1,
             .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
             .imageSharingMode = sharingMode,
             .queueFamilyIndexCount = 2,
             .pQueueFamilyIndices = indices,
             .preTransform = capabilities.currentTransform,
             .compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-            .presentMode = getPresentMode(physicalDevice),
+            .presentMode = getPresentMode(physicalDevice, surface),
             .oldSwapchain = old,
     };
 
@@ -417,7 +427,7 @@ static vk::PhysicalDevice getPhysicalDevice(
 static std::vector<const char*> getInstanceExtensions(SDL_Window* window, bool validation) {
     unsigned int count;
     SDL_Vulkan_GetInstanceExtensions(window, &count, nullptr);
-    std::vector<const char*> extensions(validation ? count + 1 : count);
+    std::vector<const char*> extensions(count);
     SDL_Vulkan_GetInstanceExtensions(window, &count, extensions.data());
     if (validation)
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -454,10 +464,10 @@ static vk::Instance createInstance(SDL_Window* window, PFN_vkDebugUtilsMessenger
     };
 
     auto extensions = getInstanceExtensions(window, debugCallback != nullptr);
-    for (const auto ext : extensions)
+    for (const auto& ext : extensions)
         spdlog::info("Loaded instance extension: {}", ext);
     auto layers = getLayers(debugCallback != nullptr);
-    for (const auto layer : layers)
+    for (const auto& layer : layers)
         spdlog::info("Loaded layer: {}", layer);
 
     vk::InstanceCreateInfo createInfo{
@@ -480,7 +490,7 @@ static vk::Instance createInstance(SDL_Window* window, PFN_vkDebugUtilsMessenger
     // log actual version of vulkan in use
     auto vkVersion = vk::enumerateInstanceVersion();
     spdlog::info(
-            "Vulkan version: {:d}.{:d}.{:d} loaded",
+            "Vulkan version {:d}.{:d}.{:d} loaded",
             VK_API_VERSION_MAJOR(vkVersion),
             VK_API_VERSION_MINOR(vkVersion),
             VK_API_VERSION_PATCH(vkVersion)
