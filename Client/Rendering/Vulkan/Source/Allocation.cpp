@@ -71,4 +71,47 @@ Buffer& Buffer::operator=(Buffer&& other) noexcept {
     return *this;
 }
 
+Buffer::Buffer(const vk::BufferCreateInfo& createInfo, const VmaAllocationCreateInfo& allocInfo) {
+    if (vmaCreateBuffer(
+                allocator,
+                reinterpret_cast<const VkBufferCreateInfo*>(&createInfo),
+                &allocInfo,
+                reinterpret_cast<VkBuffer*>(&buffer),
+                &allocation,
+                &info
+        )
+        != VK_SUCCESS)
+        throw std::runtime_error("VMA failed to create buffer");
+}
+
+void Buffer::reset() noexcept {
+    if (buffer)
+        vmaDestroyBuffer(allocator, buffer, allocation);
+    buffer = nullptr;
+}
+
+Image::Image(Image&& other) noexcept {
+    image = other.image;
+    allocation = other.allocation;
+    info = other.info;
+    other.image = nullptr;
+}
+
+Image& Image::operator=(Image&& other) noexcept {
+    if (this != &other) {
+        reset();
+        image = other.image;
+        allocation = other.allocation;
+        info = other.info;
+        other.image = nullptr;
+    }
+    return *this;
+}
+
+void Image::reset() noexcept {
+    if (image)
+        vmaDestroyImage(allocator, image, allocation);
+    image = nullptr;
+}
+
 }   // namespace dragonfire::rendering

@@ -7,7 +7,12 @@
 using namespace dragonfire;
 
 int main(int argc, char** argv) {
-    GameClient game(argc, argv);
-    game.run();
+    try {
+        GameClient game(argc, argv);
+        game.run();
+    } catch (const std::exception& e) {
+        spdlog::error("Uncaught exception: {}", e.what());
+        return -1;
+    }
     return 0;
 }

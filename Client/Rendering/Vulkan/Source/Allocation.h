@@ -46,7 +46,7 @@ public:
 
     void unmap() const noexcept { vmaUnmapMemory(allocator, allocation); }
 
-    VmaAllocationInfo& getInfo() noexcept {return info;}
+    VmaAllocationInfo& getInfo() noexcept { return info; }
 };
 
 class Buffer : public Allocation {
@@ -54,43 +54,34 @@ class Buffer : public Allocation {
 
 public:
     Buffer() = default;
-    Buffer(const vk::BufferCreateInfo& createInfo, const VmaAllocationCreateInfo& allocInfo) {
-        if (vmaCreateBuffer(
-                allocator,
-                reinterpret_cast<const VkBufferCreateInfo*>(&createInfo),
-                &allocInfo,
-                reinterpret_cast<VkBuffer*>(&buffer),
-                &allocation,
-                &info
-        ) != VK_SUCCESS)
-            throw std::runtime_error("VMA failed to create buffer");
-    }
+    Buffer(const vk::BufferCreateInfo& createInfo, const VmaAllocationCreateInfo& allocInfo);
 
-    ~Buffer() noexcept override {
-        reset();
-    };
+    ~Buffer() noexcept override { reset(); };
 
-    void reset() noexcept {
-        if (buffer)
-            vmaDestroyBuffer(allocator, buffer, allocation);
-        buffer = nullptr;
-    }
+    void reset() noexcept;
 
     operator vk::Buffer() noexcept { return buffer; }
 
     Buffer(Buffer&& other) noexcept;
-    Buffer& operator =(Buffer&& other) noexcept;
+    Buffer& operator=(Buffer&& other) noexcept;
     Buffer(Buffer& other) = delete;
-    Buffer& operator =(Buffer& other) = delete;
+    Buffer& operator=(Buffer& other) = delete;
 };
 
 class Image : public Allocation {
     vk::Image image;
 
 public:
-    ~Image() noexcept override { vmaDestroyImage(allocator, image, allocation); }
+    ~Image() noexcept override { reset(); }
+
+    void reset() noexcept;
 
     operator vk::Image() noexcept { return image; }
+
+    Image(Image&& other) noexcept;
+    Image& operator=(Image&& other) noexcept;
+    Image(Image& other) = delete;
+    Image& operator=(Image& other) = delete;
 };
 
 template<typename T>
@@ -107,12 +98,12 @@ public:
                 VmaAllocationCreateInfo{
                         .flags = VmaAllocationCreateFlagBits::VMA_ALLOCATION_CREATE_MAPPED_BIT,
                         .usage = VMA_MEMORY_USAGE_CPU_TO_GPU,
-                        .requiredFlags = (VkMemoryPropertyFlags) (vk::MemoryPropertyFlagBits::eHostVisible
-                                         | vk::MemoryPropertyFlagBits::eHostCoherent),
+                        .requiredFlags = (VkMemoryPropertyFlags
+                        ) (vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent),
                         .priority = 1,
                 }
         ) {}
     T& operator*() noexcept { return *reinterpret_cast<T*>(info.pMappedData); }
-    T* operator ->() noexcept {return reinterpret_cast<T*>(info.pMappedData);}
+    T* operator->() noexcept { return reinterpret_cast<T*>(info.pMappedData); }
 };
 }   // namespace dragonfire::rendering

@@ -53,12 +53,13 @@ public:
         return get<T>(str);
     }
 
-    inline void insert(std::string str, ConfigTypes&& val) {
+    void insert(std::string str, ConfigTypes&& val) {
         std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+        spdlog::info("Loaded config option: {}", str);
         configMap[str] = std::move(val);
     }
 
-    inline void insert(std::string str, const ConfigTypes& val) {
+    void insert(std::string str, const ConfigTypes& val) {
         std::transform(str.begin(), str.end(), str.begin(), ::tolower);
         spdlog::info("Loaded config option: {}", str);
         configMap[str] = val;

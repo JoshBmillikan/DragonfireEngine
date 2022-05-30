@@ -20,7 +20,7 @@ public:
     /// list to initialize common systems such as logging
     /// \param argc count of the command line arguments
     /// \param argv the command line arguments
-    /// \param level the logging level TODO read this from the command line instead
+    /// \param level the logging level
     Game(int argc, char** argv, spdlog::level::level_enum level = spdlog::level::info);
 
     /// \brief Runs the game.
@@ -29,6 +29,11 @@ public:
 
     /// Shuts down the game
     virtual ~Game() noexcept;
+
+    Game(Game& other) = delete;
+    Game& operator =(Game& other) = delete;
+    Game(Game&& other) = delete;
+    Game& operator =(Game&& other) = delete;
 };
 
 }   // namespace dragonfire

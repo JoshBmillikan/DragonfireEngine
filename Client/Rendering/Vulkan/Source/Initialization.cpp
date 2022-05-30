@@ -446,7 +446,8 @@ static vk::DebugUtilsMessengerCreateInfoEXT getDebugCreateInfo(PFN_vkDebugUtilsM
     return vk::DebugUtilsMessengerCreateInfoEXT{
             .messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose
                                | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
-                               | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+                               | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError
+                               | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo,
             .messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral
                            | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation
                            | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
