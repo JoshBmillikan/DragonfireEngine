@@ -1,0 +1,2 @@
+set(SDL_TEST_ENABLED_BY_DEFAULT OFF)
+add_subdirectory(SDL EXCLUDE_FROM_ALL)

@@ -3,8 +3,8 @@ project(DragonfireEngine)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(APP_NAME "raven" CACHE STRING "Name of the game executable")
-set(APP_DISPLAY_NAME "Raven Engine" CACHE STRING "Display name of the game(window title)")
+set(APP_NAME "dragonfire_engine" CACHE STRING "Name of the game executable")
+set(APP_DISPLAY_NAME "Dragonfire Engine" CACHE STRING "Display name of the game(window title)")
 
 add_subdirectory(external)
 add_compile_definitions("APP_NAME=\"${APP_NAME}\"" "APP_DISPLAY_NAME=\"${APP_DISPLAY_NAME}\"")
