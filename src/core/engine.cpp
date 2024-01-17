@@ -63,14 +63,20 @@ static void mountDir(const std::string& str)
                   << ", error: " << PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()) << std::endl;
 }
 
-Engine::Engine(const int argc, char** argv)
+Engine::Engine(
+    const int argc,
+    char** argv,
+    std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
+)
 {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_HAPTIC | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
         crash("SDL init failed: {}", SDL_GetError());
     crashOnException([=] { File::init(argc, argv); });
-    parseCommandLine(argc, argv);
-    for (auto& opt : cli["mount"].as<std::vector<std::string>>())
-        mountDir(opt);
+    parseCommandLine(argc, argv, std::move(extraCli));
+    if (cli["mount"].count() > 0) {
+        for (auto& opt : cli["mount"].as<std::vector<std::string>>())
+            mountDir(opt);
+    }
     initLogging(cli["log"].as<spdlog::level::level_enum>());
 }
 
@@ -95,21 +101,19 @@ void Engine::run()
     });
 }
 
-cxxopts::OptionAdder Engine::getCommandLineOptions(cxxopts::OptionAdder& options)
-{
-    return options;
-}
-
-void Engine::parseCommandLine(const int argc, char** argv)
+void Engine::parseCommandLine(
+    const int argc,
+    char** argv,
+    std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
+)
 {
     cxxopts::Options options(APP_NAME, "A voxel game engine");
     auto adder = options.add_options();
-    getCommandLineOptions(adder);
-    adder("h,help", "Print usage")(
+    extraCli(std::move(adder))("h,help", "Print usage")(
         "l,log",
         "Log level [trace, debug, info, warn, err, critical, off]",
         cxxopts::value<spdlog::level::level_enum>()->default_value("info")
-    )("mt,mount", "Mount a directory to a virtual mount point, specify args in the form of [dir]=[mount point]",
+    )("m,mount", "Mount a directory to a virtual mount point, specify args in the form of [dir]=[mount point]",
         cxxopts::value<std::vector<std::string>>());
 
     cli = options.parse(argc, argv);
@@ -119,4 +123,4 @@ void Engine::parseCommandLine(const int argc, char** argv)
         exit(0);
     }
 }
-}// namespace raven
+}// namespace dragonfire

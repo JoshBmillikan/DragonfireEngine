@@ -58,6 +58,19 @@ public:
     static void init(const char* argv0);
     static void mount(const char* dir, const char* mountPoint, bool append = false);
     static void mount(const std::string& dir, const std::string& mountPoint, bool append = false);
+    File(const File& other) = delete;
+
+    File(File&& other) noexcept : fp(other.fp) {}
+
+    File& operator=(const File& other) = delete;
+
+    File& operator=(File&& other) noexcept
+    {
+        if (this == &other)
+            return *this;
+        fp = other.fp;
+        return *this;
+    }
 };
 
 struct PhysFsError final : std::runtime_error {

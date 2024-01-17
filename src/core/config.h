@@ -16,11 +16,6 @@ public:
     struct Variable {
         std::optional<std::variant<int64_t, double, bool, std::string>> data;
 
-        template<typename T>
-        explicit Variable(T val) : data(std::forward<T>(val))
-        {
-        }
-
         Variable() = default;
 
         template<typename T>
@@ -48,7 +43,7 @@ public:
     void setVar(std::string&& id, T data)
     {
         std::unique_lock lock(mutex);
-        vars[id] = std::forward<T>(data);
+        vars[id].data = std::forward<T>(data);
     }
 
     void loadJson(std::string& txt);

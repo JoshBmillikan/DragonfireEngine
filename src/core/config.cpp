@@ -9,6 +9,8 @@
 
 namespace dragonfire {
 
+Config Config::INSTANCE;
+
 template<typename T>
 static std::optional<T> extractVar(auto v)
 {
@@ -67,13 +69,14 @@ void Config::loadJson(std::string& txt)
     auto json = nlohmann::json::parse(txt);
     std::unique_lock lock(mutex);
     for (auto& [key, value] : json.items()) {
+        SPDLOG_DEBUG("Loaded config var \"{}\" from json", key);
         switch (value.type()) {
             case nlohmann::detail::value_t::null: vars[key]; break;
-            case nlohmann::detail::value_t::string: vars.emplace(key, value.get<std::string>()); break;
-            case nlohmann::detail::value_t::boolean: vars.emplace(key, value.get<bool>()); break;
+            case nlohmann::detail::value_t::string: vars[key].data = value.get<std::string>(); break;
+            case nlohmann::detail::value_t::boolean: vars[key].data = value.get<bool>(); break;
             case nlohmann::detail::value_t::number_integer:
-            case nlohmann::detail::value_t::number_unsigned: vars.emplace(key, value.get<int64_t>()); break;
-            case nlohmann::detail::value_t::number_float: vars.emplace(key, value.get<double>()); break;
+            case nlohmann::detail::value_t::number_unsigned: vars[key].data = value.get<int64_t>(); break;
+            case nlohmann::detail::value_t::number_float: vars[key].data = value.get<double>(); break;
             default: SPDLOG_ERROR("Invalid config value for json key {}", key);
         }
     }
@@ -108,4 +111,4 @@ void Config::saveJson(const char* path) const
     File file(path, File::Mode::WRITE);
     file.write(txt);
 }
-}// namespace raven
+}// namespace dragonfire

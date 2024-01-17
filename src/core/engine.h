@@ -4,12 +4,18 @@
 
 #pragma once
 #include <cxxopts.hpp>
+#include <functional>
 
 namespace dragonfire {
 
 class Engine {
 public:
-    Engine(int argc, char** argv);
+    Engine(
+        int argc,
+        char** argv,
+        std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
+        = [](cxxopts::OptionAdder&& it) { return it; }
+    );
     virtual ~Engine();
     void run();
 
@@ -17,13 +23,16 @@ public:
 
 protected:
     virtual void mainLoop(double deltaTime) = 0;
-    virtual cxxopts::OptionAdder getCommandLineOptions(cxxopts::OptionAdder& options);
     cxxopts::ParseResult cli;
 
 private:
     bool running = false;
 
-    void parseCommandLine(int argc, char** argv);
+    void parseCommandLine(
+        int argc,
+        char** argv,
+        std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
+    );
 };
 
-}// namespace raven
+}// namespace dragonfire

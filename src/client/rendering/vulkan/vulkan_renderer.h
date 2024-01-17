@@ -10,6 +10,8 @@ namespace dragonfire::vulkan {
 
 class VulkanRenderer final : public BaseRenderer {
 public:
+    explicit VulkanRenderer(bool enableValidation);
+    ~VulkanRenderer() override;
 
 private:
     Context context;

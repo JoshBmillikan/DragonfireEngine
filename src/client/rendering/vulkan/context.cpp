@@ -202,22 +202,27 @@ static void logDriverVersion(const vk::PhysicalDeviceProperties& properties)
 }
 
 template<typename T, size_t INDEX = 0>
-    requires(INDEX < std::tuple_size_v<T>)
-static bool checkFeatures(const T& requried, const T& supported)
-{
-    bool ok = std::get<INDEX>(requried) ? std::get<INDEX>(supported) : true;
-    return ok && checkFeatures<T, INDEX + 1>(requried, supported);
-}
-
-template<typename T, size_t INDEX = 0>
+    requires(INDEX >= std::tuple_size_v<T>)
 static bool checkFeatures(const T& requried, const T& supported)
 {
     return true;
 }
 
+template<typename T, size_t INDEX = 0>
+    requires(INDEX < std::tuple_size_v<T>)
+static bool checkFeatures(const T& requried, const T& supported)
+{
+    auto requiredVal = std::get<INDEX>(requried);
+    if constexpr (std::is_same_v<decltype(requiredVal), vk::Bool32>) {
+        vk::Bool32 ok = requiredVal ? std::get<INDEX>(supported) : vk::True;
+        return ok && checkFeatures<T, INDEX + 1>(requried, supported);
+    }
+    else
+        return true;
+}
 
 static bool supportsRequriedFeatures(
-    vk::PhysicalDevice device,
+    const vk::PhysicalDevice device,
     const vk::PhysicalDeviceFeatures2& requiredFeatures
 )
 {
@@ -226,8 +231,31 @@ static bool supportsRequriedFeatures(
         vk::PhysicalDeviceVulkan11Features,
         vk::PhysicalDeviceVulkan12Features,
         vk::PhysicalDeviceVulkan13Features>();
-    auto& base = supported.get<vk::PhysicalDeviceFeatures2>().features;
-    checkFeatures(requiredFeatures.features.reflect(), base.reflect());
+    const auto& base = supported.get<vk::PhysicalDeviceFeatures2>().features;
+    bool ok = checkFeatures(requiredFeatures.features.reflect(), base.reflect());
+    for (auto structure = static_cast<const vk::BaseInStructure*>(requiredFeatures.pNext);
+         structure != nullptr;
+         structure = static_cast<const vk::BaseInStructure*>(structure->pNext)) {
+        switch (structure->sType) {
+            case vk::StructureType::ePhysicalDeviceVulkan11Features: {
+                const auto features = reinterpret_cast<const vk::PhysicalDeviceVulkan11Features*>(structure);
+                const auto& suport = supported.get<vk::PhysicalDeviceVulkan11Features>();
+                ok = ok && checkFeatures(features->reflect(), suport.reflect());
+            }
+            case vk::StructureType::ePhysicalDeviceVulkan12Features: {
+                const auto features = reinterpret_cast<const vk::PhysicalDeviceVulkan12Features*>(structure);
+                const auto& suport = supported.get<vk::PhysicalDeviceVulkan12Features>();
+                ok = ok && checkFeatures(features->reflect(), suport.reflect());
+            }
+            case vk::StructureType::ePhysicalDeviceVulkan13Features: {
+                const auto features = reinterpret_cast<const vk::PhysicalDeviceVulkan13Features*>(structure);
+                const auto& suport = supported.get<vk::PhysicalDeviceVulkan13Features>();
+                ok = ok && checkFeatures(features->reflect(), suport.reflect());
+            }
+            default: break;
+        }
+    }
+    return ok;
 }
 
 /***
@@ -305,8 +333,15 @@ static bool isValidDevice(
     const std::span<const char*> enabledExtensions
 )
 {
-    if (!supportsRequriedFeatures(device, requiredFeatures))
+    const auto logger = spdlog::get("Rendering");
+    if (!supportsRequriedFeatures(device, requiredFeatures)) {
+        SPDLOG_LOGGER_DEBUG(
+            logger,
+            "Device {} does not support requred features",
+            static_cast<const char*>(device.getProperties().deviceName)
+        );
         return false;
+    }
     vk::ExtensionProperties* properties = nullptr;
     uint32_t count = 0;
     if (device.enumerateDeviceExtensionProperties(nullptr, &count, properties) != vk::Result::eSuccess)
@@ -323,11 +358,25 @@ static bool isValidDevice(
                 break;
             }
         }
-        if (!found)
+        if (!found) {
+            SPDLOG_LOGGER_DEBUG(
+                logger,
+                "Device {} does not support requred extensions",
+                static_cast<const char*>(device.getProperties().deviceName)
+            );
             return false;
+        }
     }
 
-    return getQueueFamilies(device, surface);
+    const bool queues = getQueueFamilies(device, surface);
+    if (!queues) {
+        SPDLOG_LOGGER_DEBUG(
+            logger,
+            "Device {} does not have valid device queues",
+            static_cast<const char*>(device.getProperties().deviceName)
+        );
+    }
+    return queues;
 }
 
 static vk::PhysicalDevice getPhysicalDevice(
@@ -346,17 +395,88 @@ static vk::PhysicalDevice getPhysicalDevice(
     if (instance.enumeratePhysicalDevices(&deviceCount, devices) != vk::Result::eSuccess)
         crash("Failed to enumerate physical devices");
 
-    for (uint32_t i = 0; i < deviceCount; i++) {}
+    vk::PhysicalDevice found = nullptr;
+    for (uint32_t i = 0; i < deviceCount; i++) {
+        if (isValidDevice(devices[i], surface, requiredFeatures, enabledExtensions)) {
+            found = devices[i];
+            found.getProperties(deviceProperties);
+            // keep searching if the device is supported but not a discrete gpu,
+            // but save it as a fallback if no discrete gpu is available.
+            if (deviceProperties->deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
+                break;
+        }
+    }
+    if (!found)
+        crash("No valid gpu found!");
+
+    // Log info about the device
+    const auto logger = spdlog::get("Rendering");
+    logger->info("Using GPU {}", static_cast<const char*>(deviceProperties->deviceName));
+    if (deviceProperties->deviceType != vk::PhysicalDeviceType::eDiscreteGpu)
+        spdlog::warn("No discrete GPU found, performance may be degraded");
+    logDriverVersion(*deviceProperties);
+
+    return found;
+}
+
+static vk::Device createDevice(
+    const vk::PhysicalDevice physicalDevice,
+    std::span<const char*> enabledExtensions,
+    const vk::PhysicalDeviceFeatures2& requiredFeatures,
+    const vk::SurfaceKHR surface,
+    Context::Queues& queues
+)
+{
+    if (!getQueueFamilies(physicalDevice, surface, &queues))
+        crash("Failed to get queue families");
+    std::array<vk::DeviceQueueCreateInfo, 3> queueInfos{};
+    uint32_t queueCount = 1;
+    constexpr float priority = 1.0;
+    queueInfos[0].queueFamilyIndex = queues.graphicsFamily;
+    queueInfos[0].queueCount = 1;
+    queueInfos[0].pQueuePriorities = &priority;
+    if (queues.graphicsFamily != queues.presentFamily) {
+        queueInfos[queueCount].queueFamilyIndex = queues.presentFamily;
+        queueInfos[queueCount].queueCount = 1;
+        queueInfos[queueCount].pQueuePriorities = &priority;
+        queueCount++;
+    }
+    if (queues.graphicsFamily != queues.transferFamily) {
+        queueInfos[queueCount].queueFamilyIndex = queues.transferFamily;
+        queueInfos[queueCount].queueCount = 1;
+        queueInfos[queueCount].pQueuePriorities = &priority;
+        queueCount++;
+    }
+    const auto logger = spdlog::get("Rendering");
+    for (const char* ext : enabledExtensions)
+        logger->info("Loaded device extension: {}", ext);
+
+    vk::DeviceCreateInfo createInfo{};
+    createInfo.pQueueCreateInfos = queueInfos.data();
+    createInfo.queueCreateInfoCount = queueCount;
+    createInfo.ppEnabledExtensionNames = enabledExtensions.data();
+    createInfo.enabledExtensionCount = enabledExtensions.size();
+    createInfo.pNext = &requiredFeatures;
+
+    vk::Device device;
+    if (physicalDevice.createDevice(&createInfo, nullptr, &device) != vk::Result::eSuccess)
+        crash("Failed to create device handle");
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
+
+    queues.graphics = device.getQueue(queues.graphicsFamily, 0);
+    queues.present = device.getQueue(queues.presentFamily, 0);
+    queues.transfer = device.getQueue(queues.transferFamily, 0);
+
+    return device;
 }
 
 Context::Context(
     SDL_Window* window,
     std::span<const char*> enabledExtensions,
-    std::span<const char*> optionalExtensions,
-    bool enableValidation
+    const vk::PhysicalDeviceFeatures2& requiredFeatures,
+    const bool enableValidation
 )
 {
-    enableValidation = enableValidation || std::getenv("VALIDATION_LAYERS");
     initVulkan();
     instance = createInstance(window, enableValidation);
     const auto logger = spdlog::get("Rendering");
@@ -366,7 +486,93 @@ Context::Context(
         logger->info("Vulkan validation layers enabled");
     }
     surface = createSurface(window, instance);
+    physicalDevice
+        = getPhysicalDevice(instance, surface, requiredFeatures, enabledExtensions, &deviceProperties);
+    device = createDevice(physicalDevice, enabledExtensions, requiredFeatures, surface, queues);
 
     logger->info("Vulkan context initialized");
 }
+
+void Context::destroy()
+{
+    if (instance) {
+        device.destroy();
+        instance.destroy(surface);
+        if (debugMessenger)
+            instance.destroy(debugMessenger);
+        instance.destroy();
+        instance = nullptr;
+        spdlog::get("Rendering")->info("Vulkan shutdown successfully");
+    }
+}
+
+
+PFN_vkVoidFunction Context::getFunctionByName(const char* functionName, void*) noexcept
+{
+#define FN(name)                          \
+    if (strcmp(functionName, #name) == 0) \
+        return reinterpret_cast<PFN_vkVoidFunction>(VULKAN_HPP_DEFAULT_DISPATCHER.name);
+    FN(vkAllocateCommandBuffers)
+    FN(vkAllocateDescriptorSets)
+    FN(vkAllocateMemory)
+    FN(vkBindBufferMemory)
+    FN(vkBindImageMemory)
+    FN(vkCmdBindDescriptorSets)
+    FN(vkCmdBindIndexBuffer)
+    FN(vkCmdBindPipeline)
+    FN(vkCmdBindVertexBuffers)
+    FN(vkCmdCopyBufferToImage)
+    FN(vkCmdDrawIndexed)
+    FN(vkCmdPipelineBarrier)
+    FN(vkCmdPushConstants)
+    FN(vkCmdSetScissor)
+    FN(vkCmdSetViewport)
+    FN(vkCreateBuffer)
+    FN(vkCreateCommandPool)
+    FN(vkCreateDescriptorSetLayout)
+    FN(vkCreateFence)
+    FN(vkCreateFramebuffer)
+    FN(vkCreateGraphicsPipelines)
+    FN(vkCreateImage)
+    FN(vkCreateImageView)
+    FN(vkCreatePipelineLayout)
+    FN(vkCreateRenderPass)
+    FN(vkCreateSampler)
+    FN(vkCreateSemaphore)
+    FN(vkCreateShaderModule)
+    FN(vkCreateSwapchainKHR)
+    FN(vkDestroyBuffer)
+    FN(vkDestroyCommandPool)
+    FN(vkDestroyDescriptorSetLayout)
+    FN(vkDestroyFence)
+    FN(vkDestroyFramebuffer)
+    FN(vkDestroyImage)
+    FN(vkDestroyImageView)
+    FN(vkDestroyPipeline)
+    FN(vkDestroyPipelineLayout)
+    FN(vkDestroyRenderPass)
+    FN(vkDestroySampler)
+    FN(vkDestroySemaphore)
+    FN(vkDestroyShaderModule)
+    FN(vkDestroySurfaceKHR)
+    FN(vkDestroySwapchainKHR)
+    FN(vkDeviceWaitIdle)
+    FN(vkFlushMappedMemoryRanges)
+    FN(vkFreeCommandBuffers)
+    FN(vkFreeDescriptorSets)
+    FN(vkFreeMemory)
+    FN(vkGetBufferMemoryRequirements)
+    FN(vkGetImageMemoryRequirements)
+    FN(vkGetPhysicalDeviceMemoryProperties)
+    FN(vkGetPhysicalDeviceSurfaceCapabilitiesKHR)
+    FN(vkGetPhysicalDeviceSurfaceFormatsKHR)
+    FN(vkGetPhysicalDeviceSurfacePresentModesKHR)
+    FN(vkGetSwapchainImagesKHR)
+    FN(vkMapMemory)
+    FN(vkUnmapMemory)
+    FN(vkUpdateDescriptorSets)
+#undef FN
+    return nullptr;
+}
+
 }// namespace dragonfire::vulkan

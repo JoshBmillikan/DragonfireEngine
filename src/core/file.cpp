@@ -15,7 +15,7 @@ File::File(const char* path, const Mode mode)
         case Mode::WRITE: fp = PHYSFS_openWrite(path); break;
         case Mode::APPEND: fp = PHYSFS_openAppend(path); break;
     }
-    if (path == nullptr)
+    if (fp == nullptr)
         throw PhysFsError();
 }
 

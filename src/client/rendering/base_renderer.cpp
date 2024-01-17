@@ -32,7 +32,7 @@ BaseRenderer::BaseRenderer(int windowFlags) : BaseRenderer()
             break;
         default: SPDLOG_LOGGER_ERROR(logger, "Invalid window mode {}", mode);
         case INT64_MAX: SPDLOG_LOGGER_WARN(logger, "Window mode not set, running in windowed mode");
-        case 0: windowFlags |= SDL_WINDOW_RESIZABLE;
+        case 0: windowFlags |= SDL_WINDOW_RESIZABLE; break;
     }
 
     int width, height;
@@ -43,8 +43,8 @@ BaseRenderer::BaseRenderer(int windowFlags) : BaseRenderer()
         height = int(cfg.getInt("resolution_y").value_or(1080));
     }
     else {
-        width = std::min(int(cfg.getInt("resolutoin_x").value_or(dm.w)), dm.w);
-        height = std::min(int(cfg.getInt("resolution_y").value_or(dm.h)), dm.h);
+        width = std::min(int(cfg.getInt("resolutoin_x").value_or(dm.w / 2)), dm.w);
+        height = std::min(int(cfg.getInt("resolution_y").value_or(dm.h / 2)), dm.h);
     }
 
     window = SDL_CreateWindow(

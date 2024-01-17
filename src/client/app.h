@@ -4,6 +4,8 @@
 
 #pragma once
 #include <core/engine.h>
+#include <memory>
+#include <client/rendering/base_renderer.h>
 
 namespace dragonfire {
 
@@ -15,7 +17,9 @@ public:
 
 protected:
     void mainLoop(double deltaTime) override;
-    cxxopts::OptionAdder getCommandLineOptions(cxxopts::OptionAdder& options) override;
+
+private:
+    std::unique_ptr<BaseRenderer> renderer;
 };
 
 } // raven

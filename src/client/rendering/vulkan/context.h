@@ -26,9 +26,12 @@ struct Context {
     Context(
         SDL_Window* window,
         std::span<const char*> enabledExtensions,
-        std::span<const char*> optionalExtensions = {},
-        bool enableValidation = true
+        const vk::PhysicalDeviceFeatures2& requiredFeatures,
+        bool enableValidation
     );
+    void destroy();
+
+    static PFN_vkVoidFunction getFunctionByName(const char* functionName, void*) noexcept;
 };
 
 }// namespace dragonfire::vulkan
