@@ -11,46 +11,42 @@ namespace dragonfire {
 
 Config Config::INSTANCE;
 
-template<typename T>
-static std::optional<T> extractVar(auto v)
-{
-    if (v.has_value()) {
-        auto lock = std::move(v.value().second);
-        if (v.value().first.data.has_value())
-            return std::get<T>(v.value().first.data.value());
-    }
-    return std::nullopt;
-}
-
 std::optional<int64_t> Config::getInt(const std::string_view id) const
 {
-    auto v = getVariable(id);
-    return extractVar<int64_t>(std::move(v));
+    std::shared_lock lock(mutex);
+    const auto iter = vars.find(id);
+    if (iter == vars.end())
+        return std::nullopt;
+    return std::get<int64_t>(iter->second);
 }
 
 std::optional<double> Config::getFloat(const std::string_view id) const
 {
-    auto v = getVariable(id);
-    return extractVar<double>(std::move(v));
+    std::shared_lock lock(mutex);
+    const auto iter = vars.find(id);
+    if (iter == vars.end())
+        return std::nullopt;
+    return std::get<double>(iter->second);
 }
 
 std::optional<bool> Config::getBool(const std::string_view id) const
 {
-    auto v = getVariable(id);
-    return extractVar<bool>(std::move(v));
+    std::shared_lock lock(mutex);
+    const auto iter = vars.find(id);
+    if (iter == vars.end())
+        return std::nullopt;
+    return std::get<bool>(iter->second);
 }
 
 std::optional<std::pair<const std::string&, std::shared_lock<std::shared_mutex>>> Config::getString(
     const std::string_view id
 ) const
 {
-    auto v = getVariable(id);
-    if (v.has_value()) {
-        auto [var, lock] = std::move(v.value());
-        if (var.data.has_value())
-            return std::pair{std::get<std::string>(var.data.value()), std::move(lock)};
-    }
-    return std::nullopt;
+    std::shared_lock lock(mutex);
+    const auto iter = vars.find(id);
+    if (iter == vars.end())
+        return std::nullopt;
+    return std::pair{std::get<std::string>(iter->second), std::move(lock)};
 }
 
 std::optional<std::pair<const Config::Variable&, std::shared_lock<std::shared_mutex>>> Config::getVariable(
@@ -71,12 +67,12 @@ void Config::loadJson(std::string& txt)
     for (auto& [key, value] : json.items()) {
         SPDLOG_DEBUG("Loaded config var \"{}\" from json", key);
         switch (value.type()) {
-            case nlohmann::detail::value_t::null: vars[key]; break;
-            case nlohmann::detail::value_t::string: vars[key].data = value.get<std::string>(); break;
-            case nlohmann::detail::value_t::boolean: vars[key].data = value.get<bool>(); break;
+            case nlohmann::detail::value_t::null: break;
+            case nlohmann::detail::value_t::string: vars[key] = value.get<std::string>(); break;
+            case nlohmann::detail::value_t::boolean: vars[key] = value.get<bool>(); break;
             case nlohmann::detail::value_t::number_integer:
-            case nlohmann::detail::value_t::number_unsigned: vars[key].data = value.get<int64_t>(); break;
-            case nlohmann::detail::value_t::number_float: vars[key].data = value.get<double>(); break;
+            case nlohmann::detail::value_t::number_unsigned: vars[key] = value.get<int64_t>(); break;
+            case nlohmann::detail::value_t::number_float: vars[key] = value.get<double>(); break;
             default: SPDLOG_ERROR("Invalid config value for json key {}", key);
         }
     }
@@ -95,12 +91,8 @@ std::string Config::toJson() const
 {
     std::shared_lock lock(mutex);
     nlohmann::json json;
-    for (auto& [key, value] : vars) {
-        if (value.data.has_value())
-            std::visit([&](const auto& arg) { json[key] = arg; }, value.data.value());
-        else
-            json[key];
-    }
+    for (auto& [key, value] : vars)
+        std::visit([&](const auto& arg) { json[key] = arg; }, value);
 
     return to_string(json);
 }

@@ -13,19 +13,7 @@ namespace dragonfire {
 
 class Config {
 public:
-    struct Variable {
-        std::optional<std::variant<int64_t, double, bool, std::string>> data;
-
-        Variable() = default;
-
-        template<typename T>
-        std::optional<T> get() const
-        {
-            if (data.has_value())
-                return std::get<T>(data);
-            return std::nullopt;
-        }
-    };
+    using Variable = std::variant<int64_t, double, bool, std::string>;
 
     static Config& get() noexcept { return INSTANCE; }
 
@@ -43,7 +31,7 @@ public:
     void setVar(std::string&& id, T data)
     {
         std::unique_lock lock(mutex);
-        vars[id].data = std::forward<T>(data);
+        vars[id] = std::forward<T>(data);
     }
 
     void loadJson(std::string& txt);
