@@ -133,7 +133,7 @@ static vk::Instance createInstance(SDL_Window* window, const bool validation)
     vk::ApplicationInfo appInfo;
     appInfo.pApplicationName = APP_NAME;
     appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
-    appInfo.pEngineName = "no engine";
+    appInfo.pEngineName = "Dragonfire Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
@@ -380,6 +380,19 @@ static bool isValidDevice(
     return queues;
 }
 
+/**
+ * \brief Gets the physical device handle
+ *
+ * Will pick the first supported discrete GPU, integrated GPU's are only considered if no valid discrete GPU
+ * is found
+ *
+ * \param instance Vulkan instance handle
+ * \param surface Surface handle
+ * \param requiredFeatures Physical device features in use
+ * \param enabledExtensions Device extensions in use
+ * \param deviceProperties Pointer to device property, will be written to from the found device
+ * \return The physical device handle
+ */
 static vk::PhysicalDevice getPhysicalDevice(
     const vk::Instance instance,
     const vk::SurfaceKHR surface,
@@ -420,6 +433,16 @@ static vk::PhysicalDevice getPhysicalDevice(
     return found;
 }
 
+/**
+ * \brief Creates the logical device handle
+ * \param physicalDevice Physical device in use
+ * \param enabledExtensions Device extensions to enable
+ * \param requiredFeatures Device features to enable
+ * \param surface Surface handle
+ * \param queues Reference to the Queues struct, queue handles will be written to it as part of device
+ * initialization
+ * \return Logical device handle
+ */
 static vk::Device createDevice(
     const vk::PhysicalDevice physicalDevice,
     const std::span<const char*> enabledExtensions,
