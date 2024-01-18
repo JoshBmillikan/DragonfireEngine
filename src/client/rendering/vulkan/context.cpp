@@ -361,8 +361,9 @@ static bool isValidDevice(
         if (!found) {
             SPDLOG_LOGGER_DEBUG(
                 logger,
-                "Device {} does not support requred extensions",
-                static_cast<const char*>(device.getProperties().deviceName)
+                "Device {} does not support requred extension {}",
+                static_cast<const char*>(device.getProperties().deviceName),
+                extension
             );
             return false;
         }
