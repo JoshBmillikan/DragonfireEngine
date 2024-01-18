@@ -9,7 +9,11 @@ set(VULKAN_SRC
         rendering/vulkan/vulkan_renderer.h
         rendering/vulkan/context.cpp
         rendering/vulkan/context.h
-        rendering/vulkan/vulkan_headers.h)
+        rendering/vulkan/vulkan_headers.h
+        rendering/vulkan/allocation.cpp
+        rendering/vulkan/allocation.h
+        rendering/vulkan/swapchain.cpp
+        rendering/vulkan/swapchain.h)
 add_library(dragonfire-client STATIC
         app.cpp
         app.h
