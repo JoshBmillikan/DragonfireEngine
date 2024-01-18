@@ -2,10 +2,12 @@
 // Created by josh on 1/17/24.
 //
 
+#define VMA_IMPLEMENTATION
 #include "allocation.h"
-
-
 #include "core/crash.h"
+
+
+#include <spdlog/spdlog.h>
 
 namespace dragonfire::vulkan {
 void* GpuAllocation::map() const
@@ -143,10 +145,8 @@ Buffer GpuAllocator::allocate(
     return buffer;
 }
 
-Image GpuAllocator::allocate(
-    const vk::ImageCreateInfo& createInfo,
-    const VmaAllocationCreateInfo& allocInfo
-) const
+Image GpuAllocator::allocate(const vk::ImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocInfo)
+    const
 {
     Image image;
     const VkImageCreateInfo& create = createInfo;
@@ -163,6 +163,9 @@ Image GpuAllocator::allocate(
 void GpuAllocator::destroy()
 {
     vmaDestroyAllocator(allocator);
+    if (allocator) {
+        SPDLOG_LOGGER_DEBUG(spdlog::get("Rendering"), "Vulkan allocator destroyed");
+    }
     allocator = nullptr;
 }
 

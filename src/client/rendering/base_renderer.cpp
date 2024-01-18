@@ -3,12 +3,8 @@
 //
 
 #include "base_renderer.h"
-
-
 #include "core/config.h"
 #include "core/crash.h"
-
-
 #include <spdlog/spdlog.h>
 
 namespace dragonfire {

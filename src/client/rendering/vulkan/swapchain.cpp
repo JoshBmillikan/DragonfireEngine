@@ -170,6 +170,7 @@ Swapchain::Swapchain(SDL_Window* window, const Context& ctx, const bool vsync, c
         delete[] images;
         throw std::runtime_error("Failed to create swapchain image views");
     }
+    logger->info("Created swapchain of extent {}x{}", extent.width, extent.height);
 }
 
 vk::Result Swapchain::next(const vk::Semaphore semaphore, const vk::Fence fence) noexcept
@@ -185,6 +186,7 @@ Swapchain::Swapchain(Swapchain&& other) noexcept
       currentImageIndex(other.currentImageIndex), images(other.images), views(other.views),
       device(other.device)
 {
+    other.swapchain = nullptr;
 }
 
 Swapchain& Swapchain::operator=(Swapchain&& other) noexcept
@@ -192,6 +194,7 @@ Swapchain& Swapchain::operator=(Swapchain&& other) noexcept
     if (this == &other)
         return *this;
     swapchain = other.swapchain;
+    other.swapchain = nullptr;
     format = other.format;
     extent = other.extent;
     imageCount = other.imageCount;
@@ -215,6 +218,7 @@ void Swapchain::destroy()
         images = nullptr;
         delete[] views;
         views = nullptr;
+        SPDLOG_LOGGER_DEBUG(spdlog::get("Rendering"), "Swapchain destroyed");
     }
 }
 }// namespace dragonfire::vulkan

@@ -3,6 +3,11 @@
 //
 
 #include "vulkan_renderer.h"
+#include "core/config.h"
+
+
+#include <spdlog/spdlog.h>
+
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace dragonfire {
@@ -34,10 +39,17 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
     features12.pNext = &features13;
 
     context = Context(getWindow(), enabledExtensions, enabledFeatures, enableValidation);
+    allocator = GpuAllocator(context.instance, context.physicalDevice, context.device);
+    const bool vsync = Config::get().getBool("vsync").value_or(true);
+    swapchain = Swapchain(getWindow(), context, vsync);
 }
 
 vulkan::VulkanRenderer::~VulkanRenderer()
 {
+    context.device.waitIdle();
+    swapchain.destroy();
+    allocator.destroy();
     context.destroy();
+    spdlog::get("Rendering")->info("Vulkan shutdown complete");
 }
 }// namespace dragonfire

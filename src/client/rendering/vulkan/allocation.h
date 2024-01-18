@@ -83,10 +83,21 @@ public:
     ) noexcept;
 
     explicit GpuAllocator(VmaAllocator allocator) : allocator(allocator) {}
+
     GpuAllocator(const GpuAllocator& other) = default;
-    GpuAllocator(GpuAllocator&& other) noexcept = default;
+
+    GpuAllocator(GpuAllocator&& other) noexcept : allocator(other.allocator) { other.allocator = nullptr; };
+
     GpuAllocator& operator=(const GpuAllocator& other) = default;
-    GpuAllocator& operator=(GpuAllocator&& other) noexcept = default;
+
+    GpuAllocator& operator=(GpuAllocator&& other) noexcept
+    {
+        if (this != &other) {
+            allocator = other.allocator;
+            other.allocator = nullptr;
+        }
+        return *this;
+    }
 
     [[nodiscard]] VmaAllocator get() const { return allocator; }
 

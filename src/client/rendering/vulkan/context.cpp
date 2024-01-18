@@ -421,7 +421,7 @@ static vk::PhysicalDevice getPhysicalDevice(
 
 static vk::Device createDevice(
     const vk::PhysicalDevice physicalDevice,
-    std::span<const char*> enabledExtensions,
+    const std::span<const char*> enabledExtensions,
     const vk::PhysicalDeviceFeatures2& requiredFeatures,
     const vk::SurfaceKHR surface,
     Context::Queues& queues
@@ -502,10 +502,9 @@ void Context::destroy()
             instance.destroy(debugMessenger);
         instance.destroy();
         instance = nullptr;
-        spdlog::get("Rendering")->info("Vulkan shutdown successfully");
+        SPDLOG_LOGGER_DEBUG(spdlog::get("Rendering"), "Vulkan context destroyed");
     }
 }
-
 
 PFN_vkVoidFunction Context::getFunctionByName(const char* functionName, void*) noexcept
 {

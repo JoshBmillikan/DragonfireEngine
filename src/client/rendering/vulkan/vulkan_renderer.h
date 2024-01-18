@@ -5,6 +5,8 @@
 #pragma once
 #include <client/rendering/base_renderer.h>
 #include "context.h"
+#include "allocation.h"
+#include "swapchain.h"
 
 namespace dragonfire::vulkan {
 
@@ -15,6 +17,8 @@ public:
 
 private:
     Context context;
+    GpuAllocator allocator;
+    Swapchain swapchain;
 };
 
 }// namespace dragonfire
