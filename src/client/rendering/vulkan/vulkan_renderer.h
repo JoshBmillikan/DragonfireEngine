@@ -3,10 +3,11 @@
 //
 
 #pragma once
-#include <client/rendering/base_renderer.h>
-#include "context.h"
 #include "allocation.h"
+#include "context.h"
+#include "mesh.h"
 #include "swapchain.h"
+#include <client/rendering/base_renderer.h>
 
 namespace dragonfire::vulkan {
 
@@ -19,6 +20,7 @@ private:
     Context context;
     GpuAllocator allocator;
     Swapchain swapchain;
+    std::unique_ptr<MeshRegistry> meshRegistry;
 };
 
 }// namespace dragonfire

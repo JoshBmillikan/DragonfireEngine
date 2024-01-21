@@ -1,0 +1,108 @@
+#version 460
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+#include "textures.glsl"
+
+layout (set=0, binding=3) uniform UniformData {
+    mat4 perspective;
+    mat4 orthographic;
+    mat4 view;
+    vec3 sunDirection;
+    vec3 cameraPosition;
+    vec2 resolution;
+    vec4 frustum;
+    float P00;
+    float P11;
+    float zNear;
+    float zFar;
+} ubo;
+
+struct DrawData {
+    mat4 transform;
+    uint vertexOffset;
+    uint vertexCount;
+    uint indexOffset;
+    uint indexCount;
+    TextureIndices textureIndices;
+    vec4 boundingSphere;
+};
+
+layout (std430, set=0, binding=4) readonly buffer DrawDataBuffer {
+    DrawData data[];
+}drawData;
+
+layout(std430, set=0, binding=0) writeonly buffer CulledMatrices {
+    mat4 matrices[];
+}culledMatrices;
+
+struct DrawCommand {
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    uint vertexOffset;
+    uint firstInstance;
+};
+
+layout(std430, set=0, binding=1) buffer DrawCommands {
+    DrawCommand commands[];
+}drawCommands;
+
+layout(std430, set=0, binding=2) buffer CountBuffer{
+    uint counts[];
+}countBuffer;
+
+struct Vertex {
+    vec3 position;
+    vec3 normal;
+    vec2 uv;
+};
+
+layout(push_constant) uniform PushConstants {
+    uint baseIndex;
+    uint pipelineIndex;
+    uint drawCount;
+    uint enableCulling;
+}pushConstants;
+
+bool isVisible(uint index)
+{
+    mat4 model = drawData.data[index].transform;
+    vec4 bounds = drawData.data[index].boundingSphere;
+    float radius = bounds.w;
+    vec3 center = (ubo.view * model * vec4(bounds.xyz, 1.f)).xyz;
+
+    bool visible = center.z * ubo.frustum.y - abs(center.x) * ubo.frustum.x > -radius &&
+    center.z * ubo.frustum.w - abs(center.y) * ubo.frustum.z > -radius;
+
+    center.z = -center.z;// ??? is this right?
+    visible = visible
+    && center.z + radius > ubo.zNear
+    && center.z - radius < ubo.zFar;
+    return visible;
+}
+
+layout(std430, set=0, binding=5) buffer TextureData {
+    TextureIndices indices[];
+}textureData;
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    if (index == 0) { atomicXor(countBuffer.counts[pushConstants.pipelineIndex], countBuffer.counts[pushConstants.pipelineIndex]); }
+    if (index < pushConstants.drawCount) {
+        if (pushConstants.enableCulling == 0 || isVisible(index)) {
+            uint currentIndex = atomicAdd(countBuffer.counts[pushConstants.pipelineIndex], 1);
+            uint outIndex = currentIndex + pushConstants.baseIndex;
+            DrawData data = drawData.data[index];
+            culledMatrices.matrices[outIndex] = data.transform;
+            drawCommands.commands[outIndex].indexCount = data.indexCount;
+            drawCommands.commands[outIndex].instanceCount = 1;
+            drawCommands.commands[outIndex].firstIndex = data.indexOffset;
+            drawCommands.commands[outIndex].vertexOffset = data.vertexOffset;
+            drawCommands.commands[outIndex].firstInstance = outIndex;
+            textureData.indices[outIndex] = data.textureIndices;
+        } else {
+
+        }
+    }
+}

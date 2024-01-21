@@ -13,16 +13,23 @@ set(VULKAN_SRC
         rendering/vulkan/allocation.cpp
         rendering/vulkan/allocation.h
         rendering/vulkan/swapchain.cpp
-        rendering/vulkan/swapchain.h)
+        rendering/vulkan/swapchain.h
+        rendering/vulkan/pipeline.cpp
+        rendering/vulkan/pipeline.h
+        rendering/vulkan/mesh.cpp
+        rendering/vulkan/mesh.h)
 add_library(dragonfire-client STATIC
         app.cpp
         app.h
         rendering/base_renderer.cpp
         rendering/base_renderer.h
         ${VULKAN_SRC}
+        rendering/vertex.h
 )
 target_link_libraries(dragonfire-client PUBLIC dragonfire-core fastgltf::fastgltf)
 target_link_libraries(dragonfire-client PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator unofficial::spirv-reflect::spirv-reflect)
+add_dependencies(dragonfire-client shader-target)
+target_compile_definitions(dragonfire-client PRIVATE "SHADER_OUTPUT_PATH=\"${SHADERS_OUT}\"")
 
 add_executable(${APP_NAME} main.cpp)
 target_link_libraries(${APP_NAME} PRIVATE dragonfire-client SDL2::SDL2main)

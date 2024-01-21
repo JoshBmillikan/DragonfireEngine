@@ -4,8 +4,6 @@
 
 #include "vulkan_renderer.h"
 #include "core/config.h"
-
-
 #include <spdlog/spdlog.h>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -20,6 +18,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
         VK_EXT_MEMORY_BUDGET_EXTENSION_NAME,
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+        VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
     };
     vk::PhysicalDeviceFeatures2 enabledFeatures{};
     enabledFeatures.features.samplerAnisotropy = true;
@@ -34,6 +33,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
     features12.drawIndirectCount = true;
     vk::PhysicalDeviceVulkan13Features features13{};
     features13.dynamicRendering = true;
+    features13.synchronization2 = true;
 
     enabledFeatures.pNext = &features12;
     features12.pNext = &features13;
@@ -42,6 +42,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
     allocator = GpuAllocator(context.instance, context.physicalDevice, context.device);
     const bool vsync = Config::get().getBool("vsync").value_or(true);
     swapchain = Swapchain(getWindow(), context, vsync);
+    meshRegistry = std::make_unique<MeshRegistry>(context, allocator);
 }
 
 vulkan::VulkanRenderer::~VulkanRenderer()

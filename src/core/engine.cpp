@@ -82,6 +82,7 @@ Engine::Engine(
 
 Engine::~Engine()
 {
+    spdlog::info("Goodbye!");
     spdlog::shutdown();
     SDL_Quit();
 }

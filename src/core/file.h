@@ -19,31 +19,33 @@ public:
     enum class Mode { READ, WRITE, APPEND };
     explicit File(const char* path, Mode mode = Mode::READ);
 
+    explicit File(const std::string& path, const Mode mode = Mode::READ) : File(path.c_str(), mode) {}
+
     explicit File(PHYSFS_File* fp) : fp(fp) {}
 
     [[nodiscard]] size_t length() const;
     size_t read(void* buffer, size_t bufSize) const;
 
-    template<typename T = std::byte>
+    template<typename T = uint8_t>
     size_t read(std::span<T> span) const
     {
         const size_t size = sizeof(T) * span.size();
         return read(span.data(), size);
     }
 
-    [[nodiscard]] std::vector<std::byte> read() const;
+    [[nodiscard]] std::vector<uint8_t> read() const;
     [[nodiscard]] std::string readString() const;
 
     size_t write(const void* buffer, size_t len);
 
-    template<typename T = std::byte>
+    template<typename T = uint8_t>
     size_t write(const std::span<T> span)
     {
-        const size_t size = sizeof(T) * span;
+        const size_t size = sizeof(T) * span.size();
         return write(span.data(), size);
     }
 
-    size_t write(std::string_view txt); // NOLINT(*-use-nodiscard)
+    size_t write(std::string_view txt);// NOLINT(*-use-nodiscard)
 
     void close();
 
@@ -78,4 +80,4 @@ struct PhysFsError final : std::runtime_error {
     explicit PhysFsError(int errorCode);
 };
 
-}// namespace raven
+}// namespace dragonfire

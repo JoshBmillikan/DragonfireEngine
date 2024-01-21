@@ -170,7 +170,7 @@ Swapchain::Swapchain(SDL_Window* window, const Context& ctx, const bool vsync, c
         delete[] images;
         throw std::runtime_error("Failed to create swapchain image views");
     }
-    logger->info("Created swapchain of extent {}x{}", extent.width, extent.height);
+    logger->info("Created swapchain of extent {}x{} with {} images", extent.width, extent.height, imageCount);
 }
 
 vk::Result Swapchain::next(const vk::Semaphore semaphore, const vk::Fence fence) noexcept

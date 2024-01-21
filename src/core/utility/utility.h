@@ -31,4 +31,4 @@ constexpr std::size_t constStrlen(const char* str) noexcept
     return i;
 }
 
-}// namespace raven
+}// namespace dragonfire

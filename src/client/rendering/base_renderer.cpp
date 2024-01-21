@@ -20,7 +20,7 @@ BaseRenderer::BaseRenderer()
 BaseRenderer::BaseRenderer(int windowFlags) : BaseRenderer()
 {
     const auto& cfg = Config::get();
-    switch (const int64_t mode = cfg.getInt("window_mode").value_or(INT64_MAX)) {
+    switch (const int64_t mode = cfg.getInt("windowMode").value_or(INT64_MAX)) {
         case 1: windowFlags |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MOUSE_CAPTURE; break;
         case 2:
             windowFlags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_MOUSE_CAPTURE;
@@ -34,12 +34,12 @@ BaseRenderer::BaseRenderer(int windowFlags) : BaseRenderer()
     SDL_DisplayMode dm;
     if (SDL_GetCurrentDisplayMode(0, &dm) < 0) {
         SPDLOG_LOGGER_ERROR(logger, "SDL failed to get display mode: {}", SDL_GetError());
-        width = int(cfg.getInt("resolution_x").value_or(1920));
-        height = int(cfg.getInt("resolution_y").value_or(1080));
+        width = int(cfg.getInt("resolutionX").value_or(1920));
+        height = int(cfg.getInt("resolutionY").value_or(1080));
     }
     else {
-        width = std::min(int(cfg.getInt("resolution_x").value_or(dm.w / 2)), dm.w);
-        height = std::min(int(cfg.getInt("resolution_y").value_or(dm.h / 2)), dm.h);
+        width = std::min(int(cfg.getInt("resolutionX").value_or(dm.w / 2)), dm.w);
+        height = std::min(int(cfg.getInt("resolutionY").value_or(dm.h / 2)), dm.h);
     }
 
     window = SDL_CreateWindow(

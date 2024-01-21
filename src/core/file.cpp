@@ -35,9 +35,9 @@ size_t File::read(void* buffer, const size_t bufSize) const
     return read;
 }
 
-std::vector<std::byte> File::read() const
+std::vector<uint8_t> File::read() const
 {
-    std::vector<std::byte> out;
+    std::vector<uint8_t> out;
     out.resize(length());
     const size_t read = File::read(std::span(out));
     assert(read == out.size());
