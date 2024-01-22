@@ -39,7 +39,14 @@ public:
 };
 
 struct PipelineInfo {
-    enum class Type { GRAPHICS, COMPUTE } type = Type::GRAPHICS;
+    enum class Type : uint8_t { GRAPHICS, COMPUTE } type = Type::GRAPHICS;
+    vk::SampleCountFlagBits sampleCount;
+    bool enableMultisampling = false;
+    bool enableColorBlend = true;
+    vk::PrimitiveTopology topology;
+    vk::PipelineRasterizationStateCreateInfo rasterState;
+    vk::PipelineDepthStencilStateCreateInfo depthState;
+    std::string_view vertexCompShader, fragmentShader, geometryShader, tessEvalShader, tessCtrlShader;
 
     static size_t hash(const PipelineInfo& info) noexcept;
     bool operator==(const PipelineInfo& other) const noexcept;
@@ -68,6 +75,7 @@ private:
     Pipeline createPipeline(const PipelineInfo& info);
     void loadShaders(const char* dir);
     void savePipelineCache() const;
+    vk::PipelineLayout createLayout(const PipelineInfo& info);
 };
 
 }// namespace dragonfire::vulkan

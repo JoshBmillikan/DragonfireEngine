@@ -9,6 +9,7 @@
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace dragonfire {
+
 vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL_WINDOW_VULKAN)
 {
     enableValidation = enableValidation || std::getenv("VALIDATION_LAYERS");
@@ -48,9 +49,11 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
 vulkan::VulkanRenderer::~VulkanRenderer()
 {
     context.device.waitIdle();
+    meshRegistry.reset();
     swapchain.destroy();
     allocator.destroy();
     context.destroy();
     spdlog::get("Rendering")->info("Vulkan shutdown complete");
 }
+
 }// namespace dragonfire

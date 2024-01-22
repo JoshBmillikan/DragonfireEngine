@@ -3,8 +3,11 @@
 //
 
 #include "pipeline.h"
+#include "client/rendering/vertex.h"
 #include "context.h"
+#include "core/crash.h"
 #include "core/file.h"
+#include "core/utility/utility.h"
 #include <physfs.h>
 #include <ranges>
 #include <spdlog/spdlog.h>
@@ -12,9 +15,44 @@
 
 namespace dragonfire::vulkan {
 
-size_t PipelineInfo::hash(const PipelineInfo& info) noexcept {}
+constexpr int MAX_SHADER_COUNT = 5;
 
-bool PipelineInfo::operator==(const PipelineInfo& other) const noexcept {}
+static std::array MESH_VERTEX_INPUT_BINDING = {
+    vk::VertexInputBindingDescription(0, sizeof(Vertex), vk::VertexInputRate::eVertex),
+};
+
+static std::array MESH_VERTEX_ATTRIBUTES = {
+    vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position)),
+    vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, normal)),
+    vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, uv)),
+};
+
+size_t PipelineInfo::hash(const PipelineInfo& info) noexcept
+{
+    size_t hash = std::hash<uint8_t>()(static_cast<uint8_t>(info.type));
+    hashCombine(hash, info.sampleCount);
+    hashCombine(hash, info.enableMultisampling);
+    hashCombine(hash, info.enableColorBlend);
+    hashCombine(hash, info.topology);
+    hashCombine(hash, info.rasterState);
+    hashCombine(hash, info.depthState);
+    hashCombine(hash, info.vertexCompShader);
+    hashCombine(hash, info.fragmentShader);
+    hashCombine(hash, info.geometryShader);
+    hashCombine(hash, info.tessEvalShader);
+    hashCombine(hash, info.tessCtrlShader);
+    return hash;
+}
+
+bool PipelineInfo::operator==(const PipelineInfo& other) const noexcept
+{
+    return type == other.type && sampleCount == other.sampleCount
+           && enableMultisampling == other.enableMultisampling && enableColorBlend == other.enableColorBlend
+           && topology == other.topology && rasterState == other.rasterState && depthState == other.depthState
+           && vertexCompShader == other.vertexCompShader && fragmentShader == other.fragmentShader
+           && geometryShader == other.geometryShader && tessEvalShader == other.tessEvalShader
+           && tessCtrlShader == other.tessCtrlShader;
+}
 
 vk::PipelineCache loadCache(const char* path, const vk::Device device)
 {
@@ -48,7 +86,7 @@ PipelineFactory::PipelineFactory(const Context& ctx) : device(ctx.device)
 
 Pipeline PipelineFactory::getOrCreate(const PipelineInfo& info)
 {
-    auto found = getPipeline(info);
+    const auto found = getPipeline(info);
     if (found.has_value())
         return found.value();
     return createPipeline(info);
@@ -57,7 +95,7 @@ Pipeline PipelineFactory::getOrCreate(const PipelineInfo& info)
 std::optional<Pipeline> PipelineFactory::getPipeline(const PipelineInfo& info)
 {
     std::shared_lock lock(mutex);
-    auto iter = pipelines.find(info);
+    const auto iter = pipelines.find(info);
     if (iter == pipelines.end())
         return std::nullopt;
     return iter->second;
@@ -65,8 +103,10 @@ std::optional<Pipeline> PipelineFactory::getPipeline(const PipelineInfo& info)
 
 PipelineFactory::~PipelineFactory()
 {
-    for (auto pipeline : std::ranges::views::values(pipelines))
+    for (auto pipeline : std::ranges::views::values(pipelines)) {
         device.destroy(pipeline);
+        device.destroy(pipeline.getLayout());
+    }
     for (auto& [shader, refl] : std::ranges::views::values(shaders))
         device.destroy(shader);
     try {
@@ -78,20 +118,102 @@ PipelineFactory::~PipelineFactory()
     device.destroy(cache);
 }
 
+static const std::pair<vk::ShaderModule, spv_reflect::ShaderModule>& getShader(
+    const std::string_view id,
+    const StringMap<std::pair<vk::ShaderModule, spv_reflect::ShaderModule>>& shaders
+)
+{
+    const auto iter = shaders.find(id);
+    if (iter == shaders.end())
+        throw std::out_of_range("Shader not found");
+    return iter->second;
+}
+
+static uint32_t createStageInfos(
+    vk::PipelineShaderStageCreateInfo* infos,
+    const PipelineInfo& info,
+    const StringMap<std::pair<vk::ShaderModule, spv_reflect::ShaderModule>>& shaders
+)
+{
+    uint32_t count = 2;
+    {
+        const auto& shader = getShader(info.vertexCompShader, shaders);
+        infos[0] = vk::PipelineShaderStageCreateInfo(
+            {},
+            vk::ShaderStageFlagBits::eVertex,
+            shader.first,
+            shader.second.GetSourceFile()
+        );
+    }
+    {
+        const auto& shader = getShader(info.fragmentShader, shaders);
+        infos[1] = vk::PipelineShaderStageCreateInfo(
+            {},
+            vk::ShaderStageFlagBits::eFragment,
+            shader.first,
+            shader.second.GetSourceFile()
+        );
+    }
+    if (!info.geometryShader.empty()) {
+        const auto& shader = getShader(info.geometryShader, shaders);
+        infos[count] = vk::PipelineShaderStageCreateInfo(
+            {},
+            vk::ShaderStageFlagBits::eGeometry,
+            shader.first,
+            shader.second.GetSourceFile()
+        );
+        count++;
+    }
+    if (!info.tessEvalShader.empty()) {
+        const auto& shader = getShader(info.tessEvalShader, shaders);
+        infos[count] = vk::PipelineShaderStageCreateInfo(
+            {},
+            vk::ShaderStageFlagBits::eTessellationEvaluation,
+            shader.first,
+            shader.second.GetSourceFile()
+        );
+        count++;
+    }
+    if (!info.tessCtrlShader.empty()) {
+        const auto& shader = getShader(info.tessCtrlShader, shaders);
+        infos[count] = vk::PipelineShaderStageCreateInfo(
+            {},
+            vk::ShaderStageFlagBits::eTessellationControl,
+            shader.first,
+            shader.second.GetSourceFile()
+        );
+        count++;
+    }
+    return count;
+}
+
 Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
 {
     if (info.type == PipelineInfo::Type::COMPUTE) {
+        const auto it = shaders.find(info.vertexCompShader);
+        if (it == shaders.end())
+            throw std::out_of_range(fmt::format("Shader {} not found", info.vertexCompShader));
+        auto& [shader, reflect] = it->second;
+
         vk::ComputePipelineCreateInfo createInfo{};
+        createInfo.stage.module = shader;
+        createInfo.layout = createLayout(info);
+        createInfo.stage.stage = vk::ShaderStageFlagBits::eCompute;
+        createInfo.stage.pName = reflect.GetEntryPointName();
+
+        // todo
 
         auto [result, pipeline] = device.createComputePipeline(cache, createInfo);
         if (result != vk::Result::eSuccess)
             throw std::runtime_error("Failed to create compute pipeline");
         std::unique_lock lock(mutex);
-        return pipelines[info] = Pipeline(pipeline, vk::PipelineBindPoint::eCompute, nullptr);
+        return pipelines[info] = Pipeline(pipeline, vk::PipelineBindPoint::eCompute, createInfo.layout);
     }
 
+    vk::PipelineShaderStageCreateInfo stages[MAX_SHADER_COUNT];
+    const uint32_t stageCount = createStageInfos(stages, info, shaders);
 
-    std::array dynamicStates = {vk::DynamicState::eScissor, vk::DynamicState::eViewport};
+    constexpr std::array dynamicStates = {vk::DynamicState::eScissor, vk::DynamicState::eViewport};
     vk::PipelineDynamicStateCreateInfo dynamicStateInfo{};
     dynamicStateInfo.dynamicStateCount = dynamicStates.size();
     dynamicStateInfo.pDynamicStates = dynamicStates.data();
@@ -99,17 +221,60 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
     vk::PipelineViewportStateCreateInfo viewportState{};
     viewportState.scissorCount = viewportState.viewportCount = 1;
 
+    vk::PipelineMultisampleStateCreateInfo multisampleState{};
+    multisampleState.rasterizationSamples = info.enableMultisampling ? info.sampleCount
+                                                                     : vk::SampleCountFlagBits::e1;
+    multisampleState.sampleShadingEnable = info.enableMultisampling;
+    multisampleState.alphaToOneEnable = false;
+    multisampleState.alphaToCoverageEnable = false;
+    multisampleState.minSampleShading = 0.2f;
+
+    vk::PipelineInputAssemblyStateCreateInfo inputAsm{};
+    inputAsm.primitiveRestartEnable = false;
+    inputAsm.topology = info.topology;
+
+    vk::PipelineColorBlendAttachmentState colorBlendAttachmentState{};
+    colorBlendAttachmentState.blendEnable = info.enableColorBlend;
+    colorBlendAttachmentState.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG
+                                               | vk::ColorComponentFlagBits::eB
+                                               | vk::ColorComponentFlagBits::eA;
+
+    vk::PipelineColorBlendStateCreateInfo colorBlend{};
+    colorBlend.attachmentCount = 1;
+    colorBlend.pAttachments = &colorBlendAttachmentState;
+    colorBlend.logicOpEnable = false;
+
+    vk::PipelineVertexInputStateCreateInfo vertexInput{};
+    if (info.topology == vk::PrimitiveTopology::eTriangleList
+        || info.topology == vk::PrimitiveTopology::eTriangleFan) {
+        vertexInput.pVertexBindingDescriptions = MESH_VERTEX_INPUT_BINDING.data();
+        vertexInput.vertexBindingDescriptionCount = MESH_VERTEX_INPUT_BINDING.size();
+        vertexInput.pVertexAttributeDescriptions = MESH_VERTEX_ATTRIBUTES.data();
+        vertexInput.vertexAttributeDescriptionCount = MESH_VERTEX_ATTRIBUTES.size();
+    }
+    else {
+        crash("not yet implemented");// TODO
+    }
+
     vk::GraphicsPipelineCreateInfo createInfo{};
     createInfo.renderPass = nullptr;
     createInfo.pDynamicState = &dynamicStateInfo;
     createInfo.pViewportState = &viewportState;
-    //TODO
+    createInfo.stageCount = stageCount;
+    createInfo.pStages = stages;
+    createInfo.pMultisampleState = &multisampleState;
+    createInfo.pInputAssemblyState = &inputAsm;
+    createInfo.pColorBlendState = &colorBlend;
+    createInfo.pDepthStencilState = &info.depthState;
+    createInfo.pRasterizationState = &info.rasterState;
+    createInfo.pVertexInputState = &vertexInput;
+    createInfo.layout = createLayout(info);
 
     auto [result, pipeline] = device.createGraphicsPipeline(cache, createInfo);
     if (result != vk::Result::eSuccess)
         throw std::runtime_error("Failed to create graphics pipeline");
     std::unique_lock lock(mutex);
-    return pipelines[info] = Pipeline(pipeline, vk::PipelineBindPoint::eGraphics, nullptr);
+    return pipelines[info] = Pipeline(pipeline, vk::PipelineBindPoint::eGraphics, createInfo.layout);
 }
 
 void PipelineFactory::savePipelineCache() const
@@ -120,6 +285,28 @@ void PipelineFactory::savePipelineCache() const
         file.write(std::span(data));
         spdlog::get("Rendering")->info("Saved pipeline cache to disk");
     }
+}
+
+vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info)
+{
+    const spv_reflect::ShaderModule* reflectData[MAX_SHADER_COUNT];
+    uint32_t reflectCount = 1;
+    reflectData[0] = &getShader(info.vertexCompShader, shaders).second;
+    if (!info.fragmentShader.empty())
+        reflectData[reflectCount++] = &getShader(info.fragmentShader, shaders).second;
+    if (!info.geometryShader.empty())
+        reflectData[reflectCount++] = &getShader(info.geometryShader, shaders).second;
+    if (!info.tessEvalShader.empty())
+        reflectData[reflectCount++] = &getShader(info.tessEvalShader, shaders).second;
+    if (!info.tessCtrlShader.empty())
+        reflectData[reflectCount++] = &getShader(info.tessCtrlShader, shaders).second;
+
+    vk::PipelineLayoutCreateInfo createInfo{};
+    for(uint32_t i=0;i< reflectCount;i++) {
+
+    }
+
+    // TODO reflection
 }
 
 void PipelineFactory::loadShaders(const char* dir)
@@ -152,6 +339,7 @@ void PipelineFactory::loadShaders(const char* dir)
             createInfo.pCode = shaderData.second.GetCode();
             createInfo.codeSize = shaderData.second.GetCodeSize();
             shaderData.first = device.createShaderModule(createInfo);
+            logger->info("Loaded shader file \"{}\"", *ptr);
         }
         catch (const std::exception& e) {
             SPDLOG_LOGGER_ERROR(logger, "Failed to load shader file \"{}\", error: {}", *ptr, e.what());
