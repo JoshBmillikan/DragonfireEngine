@@ -26,6 +26,7 @@ add_library(dragonfire-core STATIC
         config.h
         utility/rng.cpp
         utility/rng.h
+        utility/small_vector.h
 )
 target_link_libraries(dragonfire-core PUBLIC SDL2::SDL2 nlohmann_json::nlohmann_json fmt::fmt
         glm::glm spdlog::spdlog unofficial::joltphysics::Jolt cxxopts::cxxopts

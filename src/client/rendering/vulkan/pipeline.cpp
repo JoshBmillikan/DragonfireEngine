@@ -12,6 +12,7 @@
 #include <ranges>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan_hash.hpp>
+#include <core/utility/small_vector.h>
 
 namespace dragonfire::vulkan {
 
@@ -302,7 +303,7 @@ vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info)
         reflectData[reflectCount++] = &getShader(info.tessCtrlShader, shaders).second;
 
     vk::PipelineLayoutCreateInfo createInfo{};
-    for(uint32_t i=0;i< reflectCount;i++) {
+    for (uint32_t i = 0; i < reflectCount; i++) {
 
     }
 
