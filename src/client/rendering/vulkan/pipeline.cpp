@@ -8,11 +8,17 @@
 #include "core/crash.h"
 #include "core/file.h"
 #include "core/utility/utility.h"
+#include <core/utility/small_vector.h>
 #include <physfs.h>
 #include <ranges>
+#include <set>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan_hash.hpp>
-#include <core/utility/small_vector.h>
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#include <malloc.h>
+#else
+#include <alloca.h>
+#endif
 
 namespace dragonfire::vulkan {
 
@@ -202,8 +208,6 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
         createInfo.stage.stage = vk::ShaderStageFlagBits::eCompute;
         createInfo.stage.pName = reflect.GetEntryPointName();
 
-        // todo
-
         auto [result, pipeline] = device.createComputePipeline(cache, createInfo);
         if (result != vk::Result::eSuccess)
             throw std::runtime_error("Failed to create compute pipeline");
@@ -288,6 +292,28 @@ void PipelineFactory::savePipelineCache() const
     }
 }
 
+static void reflectPushConstantData(
+    const spv_reflect::ShaderModule* reflect,
+    SmallVector<vk::PushConstantRange, 4>& pushConstants
+)
+{
+    uint32_t pushConstantCount;
+    SpvReflectBlockVariable** vars = nullptr;
+    if (reflect->EnumeratePushConstantBlocks(&pushConstantCount, vars) != SPV_REFLECT_RESULT_SUCCESS)
+        throw std::runtime_error("Failed to ennumerate push constants");
+    vars = static_cast<SpvReflectBlockVariable**>(alloca(sizeof(SpvReflectBlockVariable*) * pushConstantCount)
+    );
+    if (reflect->EnumeratePushConstantBlocks(&pushConstantCount, vars) != SPV_REFLECT_RESULT_SUCCESS)
+        throw std::runtime_error("Failed to ennumerate push constants");
+
+    for (uint32_t i = 0; i < pushConstantCount; i++) {
+        vk::PushConstantRange& range = pushConstants.emplace();
+        range.stageFlags = static_cast<vk::ShaderStageFlags>(reflect->GetShaderStage());
+        range.size = vars[i]->size;
+        range.offset = vars[i]->offset;
+    }
+}
+
 vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info)
 {
     const spv_reflect::ShaderModule* reflectData[MAX_SHADER_COUNT];
@@ -303,9 +329,13 @@ vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info)
         reflectData[reflectCount++] = &getShader(info.tessCtrlShader, shaders).second;
 
     vk::PipelineLayoutCreateInfo createInfo{};
+    SmallVector<vk::PushConstantRange, 4> pushConstantRanges;
     for (uint32_t i = 0; i < reflectCount; i++) {
+        reflectPushConstantData(reflectData[i], pushConstantRanges);
 
     }
+    createInfo.pPushConstantRanges = pushConstantRanges.data();
+    createInfo.pushConstantRangeCount = pushConstantRanges.size();
 
     // TODO reflection
 }
