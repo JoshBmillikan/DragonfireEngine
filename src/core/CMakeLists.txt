@@ -32,3 +32,8 @@ target_link_libraries(dragonfire-core PUBLIC SDL2::SDL2 nlohmann_json::nlohmann_
         glm::glm spdlog::spdlog unofficial::joltphysics::Jolt cxxopts::cxxopts
         $<IF:$<TARGET_EXISTS:PhysFS::PhysFS>,PhysFS::PhysFS,PhysFS::PhysFS-static>
         magic_enum::magic_enum GameNetworkingSockets::shared)
+
+add_executable(core-tests utility/frame_allocator.test.cpp
+        utility/small_vector.test.cpp)
+target_link_libraries(core-tests PRIVATE dragonfire-core Catch2::Catch2WithMain)
+catch_discover_tests(core-tests)

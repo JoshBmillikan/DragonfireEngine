@@ -5,8 +5,9 @@
 #pragma once
 #include <cassert>
 #include <cstddef>
-#include <cstdlib>
+#include <cstring>
 #include <iterator>
+#include <span>
 
 namespace dragonfire {
 
@@ -44,7 +45,7 @@ public:
     T& pushBack(const V val)
     {
         grow();
-        return *endPtr++ = std::forward<V>(val);
+        return *endPtr++ = val;
     }
 
     template<typename... Args>
