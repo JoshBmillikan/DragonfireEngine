@@ -26,7 +26,7 @@ public:
 
     [[nodiscard]] size_t size() const noexcept { return std::distance(start, endPtr); }
 
-    [[nodiscard]] bool isSpilled() const noexcept { return start != inner.inlineData; }
+    [[nodiscard]] bool isSpilled() const noexcept { return reinterpret_cast<intptr_t>(start) != reinterpret_cast<intptr_t>(&inner); }
 
     [[nodiscard]] size_t capacity() const noexcept
     {
@@ -146,7 +146,7 @@ public:
             return *this;
         }
 
-        Iterator operator++(T)
+        Iterator operator++(int)
         {
             Iterator tmp = *this;
             ++(*this);
@@ -159,7 +159,7 @@ public:
             return *this;
         }
 
-        Iterator operator--(T)
+        Iterator operator--(int)
         {
             Iterator tmp = *this;
             --(*this);

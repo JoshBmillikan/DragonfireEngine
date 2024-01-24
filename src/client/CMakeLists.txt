@@ -17,7 +17,9 @@ set(VULKAN_SRC
         rendering/vulkan/pipeline.cpp
         rendering/vulkan/pipeline.h
         rendering/vulkan/mesh.cpp
-        rendering/vulkan/mesh.h)
+        rendering/vulkan/mesh.h
+        rendering/vulkan/descriptor_set.cpp
+        rendering/vulkan/descriptor_set.h)
 add_library(dragonfire-client STATIC
         app.cpp
         app.h

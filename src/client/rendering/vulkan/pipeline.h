@@ -9,6 +9,7 @@
 #include <shared_mutex>
 #include <spirv_reflect.h>
 #include <unordered_map>
+#include "descriptor_set.h"
 
 namespace dragonfire::vulkan {
 
@@ -36,6 +37,8 @@ public:
     [[nodiscard]] vk::PipelineBindPoint getBindPoint() const { return bindPoint; }
 
     [[nodiscard]] vk::PipelineLayout getLayout() const { return layout; }
+
+    void destroy(vk::Device device);
 };
 
 struct PipelineInfo {
@@ -54,7 +57,7 @@ struct PipelineInfo {
 
 class PipelineFactory {
 public:
-    explicit PipelineFactory(const struct Context& ctx);
+    PipelineFactory(const struct Context& ctx, DescriptorLayoutManager* descriptorLayoutManager);
 
     Pipeline getOrCreate(const PipelineInfo& info);
     std::optional<Pipeline> getPipeline(const PipelineInfo& info);
@@ -70,6 +73,7 @@ private:
     std::unordered_map<PipelineInfo, Pipeline, decltype(&PipelineInfo::hash)> pipelines;
     vk::PipelineCache cache;
     StringMap<std::pair<vk::ShaderModule, spv_reflect::ShaderModule>> shaders;
+    DescriptorLayoutManager* descriptorLayoutManager = nullptr;
     vk::Device device;
 
     Pipeline createPipeline(const PipelineInfo& info);

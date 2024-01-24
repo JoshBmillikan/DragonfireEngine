@@ -34,6 +34,14 @@ static std::array MESH_VERTEX_ATTRIBUTES = {
     vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, uv)),
 };
 
+void Pipeline::destroy(const vk::Device device)
+{
+    device.destroy(layout);
+    device.destroy(pipeline);
+    pipeline = nullptr;
+    layout = nullptr;
+}
+
 size_t PipelineInfo::hash(const PipelineInfo& info) noexcept
 {
     size_t hash = std::hash<uint8_t>()(static_cast<uint8_t>(info.type));
@@ -82,7 +90,8 @@ vk::PipelineCache loadCache(const char* path, const vk::Device device)
     }
 }
 
-PipelineFactory::PipelineFactory(const Context& ctx) : device(ctx.device)
+PipelineFactory::PipelineFactory(const Context& ctx, DescriptorLayoutManager* descriptorLayoutManager)
+    : descriptorLayoutManager(descriptorLayoutManager), device(ctx.device)
 {
     cache = loadCache(CACHE_PATH, ctx.device);
 #ifdef SHADER_OUTPUT_PATH
@@ -316,10 +325,33 @@ static void reflectPushConstantData(
 
 static void reflectSetLayouts(
     const spv_reflect::ShaderModule* reflect,
-    SmallVector<vk::DescriptorSetLayout>& setLayouts
+    SmallVector<vk::DescriptorSetLayout>& setLayouts,
+    DescriptorLayoutManager* descriptorLayoutManager
 )
 {
-    // TODO
+    uint32_t setCount;
+    SpvReflectDescriptorSet** sets = nullptr;
+    if (reflect->EnumerateDescriptorSets(&setCount, sets) != SPV_REFLECT_RESULT_SUCCESS)
+        throw std::runtime_error("Failed to reflect descriptor sets");
+    sets = static_cast<SpvReflectDescriptorSet**>(alloca(sizeof(SpvReflectDescriptorSet*) * setCount));
+    if (reflect->EnumerateDescriptorSets(&setCount, sets) != SPV_REFLECT_RESULT_SUCCESS)
+        throw std::runtime_error("Failed to reflect descriptor sets");
+
+    for (uint32_t i = 0; i < setCount; i++) {
+        SmallVector<vk::DescriptorSetLayoutBinding> bindings;
+        bindings.reserve(sets[i]->binding_count);
+        for (uint32_t j = 0; j < sets[i]->binding_count; j++) {
+            const SpvReflectDescriptorBinding* binding = sets[i]->bindings[j];
+            auto& b = bindings.emplace();
+            b.binding = binding->binding;
+            b.descriptorCount = binding->count;
+            b.descriptorType = static_cast<vk::DescriptorType>(binding->descriptor_type);
+            b.stageFlags = static_cast<vk::ShaderStageFlags>(reflect->GetShaderStage());
+        }
+        vk::DescriptorSetLayout setLayout = descriptorLayoutManager->createLayout(bindings);
+        if (!setLayouts.contains(setLayout))
+            setLayouts.pushBack(setLayout);
+    }
 }
 
 vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info) const
@@ -341,7 +373,7 @@ vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info) const
     SmallVector<vk::DescriptorSetLayout> setLayouts;
     for (uint32_t i = 0; i < reflectCount; i++) {
         reflectPushConstantData(reflectData[i], pushConstantRanges);
-        reflectSetLayouts(reflectData[i], setLayouts);
+        reflectSetLayouts(reflectData[i], setLayouts, descriptorLayoutManager);
     }
     createInfo.pPushConstantRanges = pushConstantRanges.data();
     createInfo.pushConstantRangeCount = pushConstantRanges.size();
