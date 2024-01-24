@@ -27,6 +27,8 @@ add_library(dragonfire-client STATIC
         rendering/base_renderer.h
         ${VULKAN_SRC}
         rendering/vertex.h
+        rendering/camera.cpp
+        rendering/camera.h
 )
 target_link_libraries(dragonfire-client PUBLIC dragonfire-core fastgltf::fastgltf)
 target_link_libraries(dragonfire-client PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator unofficial::spirv-reflect::spirv-reflect)

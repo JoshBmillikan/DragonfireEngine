@@ -27,11 +27,13 @@ add_library(dragonfire-core STATIC
         utility/rng.cpp
         utility/rng.h
         utility/small_vector.h
+        world/transform.h
 )
 target_link_libraries(dragonfire-core PUBLIC SDL2::SDL2 nlohmann_json::nlohmann_json fmt::fmt
         glm::glm spdlog::spdlog unofficial::joltphysics::Jolt cxxopts::cxxopts
         $<IF:$<TARGET_EXISTS:PhysFS::PhysFS>,PhysFS::PhysFS,PhysFS::PhysFS-static>
         magic_enum::magic_enum GameNetworkingSockets::shared)
+target_compile_definitions(dragonfire-core PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 add_executable(core-tests utility/frame_allocator.test.cpp
         utility/small_vector.test.cpp)
