@@ -5,8 +5,10 @@
 #pragma once
 #include "allocation.h"
 #include "context.h"
+#include "descriptor_set.h"
 #include "mesh.h"
 #include "swapchain.h"
+#include "pipeline.h"
 #include <client/rendering/base_renderer.h>
 
 namespace dragonfire::vulkan {
@@ -21,6 +23,8 @@ private:
     GpuAllocator allocator;
     Swapchain swapchain;
     std::unique_ptr<MeshRegistry> meshRegistry;
+    DescriptorLayoutManager descriptorLayoutManager;
+    std::unique_ptr<PipelineFactory> pipelineFactory;
 };
 
-}// namespace dragonfire
+}// namespace dragonfire::vulkan

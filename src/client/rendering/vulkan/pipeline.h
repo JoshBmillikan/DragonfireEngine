@@ -64,6 +64,13 @@ public:
 
     Pipeline operator()(const PipelineInfo& info) { return getOrCreate(info); }
 
+    PipelineFactory(const PipelineFactory& other) = delete;
+    PipelineFactory(PipelineFactory&& other) noexcept = delete;
+    PipelineFactory& operator=(const PipelineFactory& other) = delete;
+    PipelineFactory& operator=(PipelineFactory&& other) noexcept = delete;
+
+    void destroyShaders();
+
     ~PipelineFactory();
 
 private:
@@ -77,7 +84,7 @@ private:
     vk::Device device;
 
     Pipeline createPipeline(const PipelineInfo& info);
-    void loadShaders(const char* dir);
+    void loadShaders(const char* dir = SHADER_DIR);
     void savePipelineCache() const;
     vk::PipelineLayout createLayout(const PipelineInfo& info) const;
 };

@@ -44,11 +44,15 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
     const bool vsync = Config::get().getBool("vsync").value_or(true);
     swapchain = Swapchain(getWindow(), context, vsync);
     meshRegistry = std::make_unique<MeshRegistry>(context, allocator);
+    descriptorLayoutManager = DescriptorLayoutManager(context.device);
+    pipelineFactory = std::make_unique<PipelineFactory>(context, &descriptorLayoutManager);
 }
 
 vulkan::VulkanRenderer::~VulkanRenderer()
 {
     context.device.waitIdle();
+    pipelineFactory.reset();
+    descriptorLayoutManager.destroy();
     meshRegistry.reset();
     swapchain.destroy();
     allocator.destroy();

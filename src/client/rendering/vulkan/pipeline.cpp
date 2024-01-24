@@ -117,14 +117,21 @@ std::optional<Pipeline> PipelineFactory::getPipeline(const PipelineInfo& info)
     return iter->second;
 }
 
+void PipelineFactory::destroyShaders()
+{
+    std::unique_lock lock(mutex);
+    for (auto& [shader, refl] : std::ranges::views::values(shaders))
+        device.destroy(shader);
+    shaders.clear();
+}
+
 PipelineFactory::~PipelineFactory()
 {
     for (auto pipeline : std::ranges::views::values(pipelines)) {
         device.destroy(pipeline);
         device.destroy(pipeline.getLayout());
     }
-    for (auto& [shader, refl] : std::ranges::views::values(shaders))
-        device.destroy(shader);
+    destroyShaders();
     try {
         savePipelineCache();
     }

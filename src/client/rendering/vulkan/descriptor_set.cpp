@@ -5,6 +5,7 @@
 #include "descriptor_set.h"
 #include <core/utility/utility.h>
 #include <mutex>
+#include <ranges>
 #include <vulkan/vulkan_hash.hpp>
 
 namespace dragonfire::vulkan {
@@ -32,5 +33,34 @@ vk::DescriptorSetLayout DescriptorLayoutManager::createLayout(
     std::unique_lock lock(mutex);
     layouts[hash] = layout;
     return layout;
+}
+
+void DescriptorLayoutManager::destroy()
+{
+    if (device) {
+        for (const auto layout : std::ranges::views::values(layouts))
+            device.destroy(layout);
+        layouts.clear();
+        device = nullptr;
+    }
+}
+
+DescriptorLayoutManager::DescriptorLayoutManager(DescriptorLayoutManager&& other) noexcept
+{
+    std::unique_lock lock(other.mutex);
+    device = other.device;
+    other.device = nullptr;
+    layouts = std::move(other.layouts);
+}
+
+DescriptorLayoutManager& DescriptorLayoutManager::operator=(DescriptorLayoutManager&& other) noexcept
+{
+    if (this != &other) {
+        std::scoped_lock lock(mutex, other.mutex);
+        device = other.device;
+        other.device = nullptr;
+        layouts = std::move(layouts);
+    }
+    return *this;
 }
 }// namespace dragonfire::vulkan

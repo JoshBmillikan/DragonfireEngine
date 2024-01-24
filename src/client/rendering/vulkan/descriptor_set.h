@@ -4,17 +4,30 @@
 
 #pragma once
 #include "vulkan_headers.h"
-#include <unordered_map>
 #include <shared_mutex>
+#include <unordered_map>
 
 namespace dragonfire::vulkan {
 
 class DescriptorLayoutManager {
 public:
+    DescriptorLayoutManager() = default;
+
+    explicit DescriptorLayoutManager(const vk::Device device) : device(device) {}
+
     vk::DescriptorSetLayout createLayout(
         std::span<vk::DescriptorSetLayoutBinding> bindings,
         vk::DescriptorSetLayoutCreateFlags flags = {}
     );
+
+    void destroy();
+
+    ~DescriptorLayoutManager() { destroy(); }
+
+    DescriptorLayoutManager(const DescriptorLayoutManager& other) = delete;
+    DescriptorLayoutManager(DescriptorLayoutManager&& other) noexcept;
+    DescriptorLayoutManager& operator=(const DescriptorLayoutManager& other) = delete;
+    DescriptorLayoutManager& operator=(DescriptorLayoutManager&& other) noexcept;
 
 private:
     std::shared_mutex mutex;
