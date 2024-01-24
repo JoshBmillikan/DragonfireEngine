@@ -16,6 +16,14 @@ class SmallVector {
 public:
     SmallVector() { endPtr = start = inner.inlineData; }
 
+    explicit SmallVector(const std::span<T> span) : SmallVector()
+    {
+        reserve(span.size());
+        for (auto elem : span) {
+            pushBack(elem);
+        }
+    }
+
     [[nodiscard]] size_t size() const noexcept { return std::distance(start, endPtr); }
 
     [[nodiscard]] bool isSpilled() const noexcept { return start != inner.inlineData; }
@@ -60,6 +68,15 @@ public:
     {
         if (capacity() < size)
             realloc(size);
+    }
+
+    [[nodiscard]] bool contains(const T& val) const noexcept
+    {
+        for (auto i = begin(); i != end(); i++) {
+            if (*i == val)
+                return true;
+        }
+        return false;
     }
 
     SmallVector(const SmallVector& other)
@@ -152,9 +169,9 @@ public:
         auto operator<=>(const Iterator&) const = default;
     };
 
-    Iterator begin() { return Iterator(start); }
+    [[nodiscard]] Iterator begin() const { return Iterator(start); }
 
-    Iterator end() { return Iterator(endPtr); }
+    [[nodiscard]] Iterator end() const { return Iterator(endPtr); }
 
 private:
     static constexpr size_t GROWTH_FACTOR = 2;

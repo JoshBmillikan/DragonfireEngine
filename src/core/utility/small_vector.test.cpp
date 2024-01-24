@@ -36,4 +36,10 @@ TEST_CASE("Small Vector basic usage")
         }
         CHECK(c == 7);
     }
+
+    SECTION("Contains")
+    {
+        CHECK(vec.contains(5));
+        CHECK(!vec.contains(6));
+    }
 }

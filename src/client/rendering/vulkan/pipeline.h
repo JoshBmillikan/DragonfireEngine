@@ -75,7 +75,7 @@ private:
     Pipeline createPipeline(const PipelineInfo& info);
     void loadShaders(const char* dir);
     void savePipelineCache() const;
-    vk::PipelineLayout createLayout(const PipelineInfo& info);
+    vk::PipelineLayout createLayout(const PipelineInfo& info) const;
 };
 
 }// namespace dragonfire::vulkan

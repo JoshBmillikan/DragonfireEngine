@@ -294,7 +294,7 @@ void PipelineFactory::savePipelineCache() const
 
 static void reflectPushConstantData(
     const spv_reflect::ShaderModule* reflect,
-    SmallVector<vk::PushConstantRange, 4>& pushConstants
+    SmallVector<vk::PushConstantRange, 6>& pushConstants
 )
 {
     uint32_t pushConstantCount;
@@ -314,7 +314,15 @@ static void reflectPushConstantData(
     }
 }
 
-vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info)
+static void reflectSetLayouts(
+    const spv_reflect::ShaderModule* reflect,
+    SmallVector<vk::DescriptorSetLayout>& setLayouts
+)
+{
+    // TODO
+}
+
+vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info) const
 {
     const spv_reflect::ShaderModule* reflectData[MAX_SHADER_COUNT];
     uint32_t reflectCount = 1;
@@ -329,15 +337,18 @@ vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info)
         reflectData[reflectCount++] = &getShader(info.tessCtrlShader, shaders).second;
 
     vk::PipelineLayoutCreateInfo createInfo{};
-    SmallVector<vk::PushConstantRange, 4> pushConstantRanges;
+    SmallVector<vk::PushConstantRange, 6> pushConstantRanges;
+    SmallVector<vk::DescriptorSetLayout> setLayouts;
     for (uint32_t i = 0; i < reflectCount; i++) {
         reflectPushConstantData(reflectData[i], pushConstantRanges);
-
+        reflectSetLayouts(reflectData[i], setLayouts);
     }
     createInfo.pPushConstantRanges = pushConstantRanges.data();
     createInfo.pushConstantRangeCount = pushConstantRanges.size();
+    createInfo.pSetLayouts = setLayouts.data();
+    createInfo.setLayoutCount = setLayouts.size();
 
-    // TODO reflection
+    return device.createPipelineLayout(createInfo);
 }
 
 void PipelineFactory::loadShaders(const char* dir)
