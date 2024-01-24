@@ -12,10 +12,10 @@ TEST_CASE("Small Vector basic usage")
     vec.pushBack(1);
     vec.pushBack(5);
     vec.pushBack(1);
+    REQUIRE(!vec.isSpilled());
 
     SECTION("Spilled")
     {
-        CHECK(!vec.isSpilled());
         for (int i = 0; i < 1000; i++)
             vec.pushBack(i);
         CHECK(vec.isSpilled());

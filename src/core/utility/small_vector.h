@@ -11,7 +11,7 @@
 
 namespace dragonfire {
 
-template<typename T, size_t SMALL_SIZE = std::min(40 / sizeof(T), 1ul), typename Alloc = std::allocator<T>>
+template<typename T, size_t SMALL_SIZE = std::max(40 / sizeof(T), 1ul), typename Alloc = std::allocator<T>>
 class SmallVector {
 public:
     SmallVector() { endPtr = start = inner.inlineData; }
@@ -97,7 +97,8 @@ public:
     ~SmallVector()
     {
         if (start) {
-            for (size_t i = 0; i < size(); i++) {
+            const auto s = size();
+            for (size_t i = 0; i < s; i++) {
                 start[i].~T();
             }
             if (isSpilled())
@@ -182,23 +183,27 @@ private:
         requires(!std::is_trivially_copyable_v<T>)
     {
         auto newPtr = allocator.allocate(newSize);
-        for (size_t i = 0; i < size(); i++)
+        const auto current = size();
+        for (size_t i = 0; i < current; i++)
             newPtr[i] = std::move(start[i]);
         if (isSpilled())
             allocator.deallocate(start, capacity());
         start = newPtr;
         inner.cap = start + newSize;
+        endPtr = start + current;
     }
 
     void realloc(const size_t newSize)
         requires std::is_trivially_copyable_v<T>
     {
         auto newPtr = allocator.allocate(newSize);
-        memcpy(newPtr, start, size() * sizeof(T));
+        const auto current = size();
+        memcpy(newPtr, start, current * sizeof(T));
         if (isSpilled())
             allocator.deallocate(start, capacity());
         start = newPtr;
         inner.cap = start + newSize;
+        endPtr = start + current;
     }
 };
 
