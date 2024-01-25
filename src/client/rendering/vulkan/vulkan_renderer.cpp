@@ -46,11 +46,15 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
     meshRegistry = std::make_unique<MeshRegistry>(context, allocator);
     descriptorLayoutManager = DescriptorLayoutManager(context.device);
     pipelineFactory = std::make_unique<PipelineFactory>(context, &descriptorLayoutManager);
+
+    presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
 }
 
 vulkan::VulkanRenderer::~VulkanRenderer()
 {
+    presentThread.request_stop();
     context.device.waitIdle();
+    presentThread.join();
     pipelineFactory.reset();
     descriptorLayoutManager.destroy();
     meshRegistry.reset();
@@ -58,6 +62,28 @@ vulkan::VulkanRenderer::~VulkanRenderer()
     allocator.destroy();
     context.destroy();
     spdlog::get("Rendering")->info("Vulkan shutdown complete");
+}
+
+void vulkan::VulkanRenderer::present(const std::stop_token& token)
+{
+    while (!token.stop_requested()) {
+        std::unique_lock lock(presentData.mutex);
+        presentData.condVar.wait(lock, token, [&] { return presentData.frame != nullptr; });
+        if (token.stop_requested())
+            break;
+
+        vk::SubmitInfo2 submitInfo{};
+
+
+        vk::PresentInfoKHR presentInfo{};
+        vk::SwapchainKHR swapchainKhr = swapchain;
+        presentInfo.pSwapchains = &swapchainKhr;
+        presentInfo.swapchainCount = 1;
+        presentInfo.pImageIndices = &presentData.imageIndex;
+        presentInfo.pWaitSemaphores = &presentData.frame->presentSemaphore;
+        presentInfo.waitSemaphoreCount = 1;
+        presentData.result = context.queues.present.presentKHR(presentInfo);
+    }
 }
 
 }// namespace dragonfire
