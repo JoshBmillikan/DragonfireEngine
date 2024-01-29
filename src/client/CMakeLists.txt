@@ -19,7 +19,9 @@ set(VULKAN_SRC
         rendering/vulkan/mesh.cpp
         rendering/vulkan/mesh.h
         rendering/vulkan/descriptor_set.cpp
-        rendering/vulkan/descriptor_set.h)
+        rendering/vulkan/descriptor_set.h
+        rendering/vulkan/texture.cpp
+        rendering/vulkan/texture.h)
 add_library(dragonfire-client STATIC
         app.cpp
         app.h
@@ -29,6 +31,8 @@ add_library(dragonfire-client STATIC
         rendering/vertex.h
         rendering/camera.cpp
         rendering/camera.h
+        rendering/material.cpp
+        rendering/material.h
 )
 target_link_libraries(dragonfire-client PUBLIC dragonfire-core fastgltf::fastgltf)
 target_link_libraries(dragonfire-client PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator unofficial::spirv-reflect::spirv-reflect)

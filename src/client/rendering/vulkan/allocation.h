@@ -50,7 +50,7 @@ public:
     Buffer& operator=(Buffer&& other) noexcept;
 };
 
-class Image final : public GpuAllocation {
+class Image : public GpuAllocation {
     friend class GpuAllocator;
     vk::Image image;
     vk::Format format{};
