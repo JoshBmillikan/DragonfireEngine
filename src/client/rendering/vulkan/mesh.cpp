@@ -76,9 +76,12 @@ std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
     const Buffer& stagingBuffer,
     const size_t vertexCount,
     const size_t indexCount,
-    const size_t indexOffset
+    size_t indexOffset
 )
 {
+    if (indexOffset == 0)
+        indexOffset = vertexCount * sizeof(Vertex);
+
     {
         std::shared_lock lock(mutex);
         if (meshes.contains(id))

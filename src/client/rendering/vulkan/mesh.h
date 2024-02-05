@@ -26,7 +26,7 @@ public:
         const Buffer& stagingBuffer,
         size_t vertexCount,
         size_t indexCount,
-        size_t indexOffset = vertexCount * sizeof(Vertex)
+        size_t indexOffset = 0
     );
     std::pair<Mesh*, vk::Fence> uploadMesh(
         const std::string& id,
