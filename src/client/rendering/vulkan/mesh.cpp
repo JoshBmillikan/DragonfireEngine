@@ -12,7 +12,7 @@ namespace dragonfire::vulkan {
 MeshRegistry::MeshRegistry(const Context& ctx, GpuAllocator& allocator)
     : allocator(allocator), device(ctx.device), queue(ctx.queues.transfer)
 {
-    auto& cfg = Config::get();
+    const auto& cfg = Config::get();
     maxVertexCount = cfg.getInt("maxVertexCount").value_or(1 << 26);
     maxIndexCount = cfg.getInt("maxIndexCount").value_or(1 << 27);
     const auto logger = spdlog::get("Rendering");
@@ -74,8 +74,9 @@ MeshRegistry::~MeshRegistry()
 std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
     const std::string& id,
     const Buffer& stagingBuffer,
-    size_t vertexCount,
-    size_t indexCount
+    const size_t vertexCount,
+    const size_t indexCount,
+    const size_t indexOffset
 )
 {
     {
@@ -119,7 +120,7 @@ std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
 
     vk::BufferCopy indexCopy;
     indexCopy.size = indexSize;
-    indexCopy.srcOffset = vertexSize;
+    indexCopy.srcOffset = indexOffset;
     indexCopy.dstOffset = mesh->indexInfo.offset;
 
     cmd.copyBuffer(stagingBuffer, indexBuffer, indexCopy);
@@ -144,8 +145,8 @@ std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
 
 std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
     const std::string& id,
-    std::span<Vertex> vertices,
-    std::span<uint32_t> indices
+    const std::span<Vertex> vertices,
+    const std::span<uint32_t> indices
 )
 {
     {
@@ -163,8 +164,8 @@ std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
     allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    Buffer stagingBuffer = allocator.allocate(createInfo, allocInfo);
-    char* ptr = static_cast<char*>(stagingBuffer.getInfo().pMappedData);
+    const Buffer stagingBuffer = allocator.allocate(createInfo, allocInfo);
+    auto ptr = static_cast<char*>(stagingBuffer.getInfo().pMappedData);
     memcpy(ptr, vertices.data(), vertices.size_bytes());
     ptr += vertices.size_bytes();
     memcpy(ptr, indices.data(), indices.size_bytes());
@@ -184,7 +185,7 @@ void MeshRegistry::freeMesh(const Mesh* mesh)
 Mesh* MeshRegistry::getMesh(std::string_view id)
 {
     std::shared_lock lock(mutex);
-    auto iter = meshes.find(id);
+    const auto iter = meshes.find(id);
     if (iter == meshes.end())
         return nullptr;
     return &iter->second;

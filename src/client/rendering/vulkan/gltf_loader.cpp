@@ -5,6 +5,8 @@
 #include "gltf_loader.h"
 #include "core/file.h"
 #include "core/utility/formatted_error.h"
+#include "core/utility/utility.h"
+
 #include <physfs.h>
 
 namespace dragonfire::vulkan {
@@ -34,6 +36,13 @@ VulkanGltfLoader::VulkanGltfLoader(
     cmdInfo.commandPool = pool;
     cmdInfo.commandBufferCount = 1;
     resultCheck(device.allocateCommandBuffers(&cmdInfo, &cmd), "Failed to allocate command buffer");
+
+    vk::BufferCreateInfo bufInfo{};
+    bufInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
 }
 
 VulkanGltfLoader::~VulkanGltfLoader()
@@ -45,6 +54,14 @@ VulkanGltfLoader::~VulkanGltfLoader()
 std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
 {
     loadAsset(path);
+    const vk::DeviceSize totalSize = computeBufferSize();
+    void* ptr = getStagingPtr(totalSize);
+    for (auto& mesh : asset.meshes) {
+        for (auto& primitive : mesh.primitives) {
+            
+        }
+    }
+
 
     // TODO
 }
@@ -65,5 +82,32 @@ void VulkanGltfLoader::loadAsset(const char* path)
         type == fastgltf::GltfType::glTF ? parser.loadGLTF(&buffer, PHYSFS_getRealDir(path), opts)
                                          : parser.loadBinaryGLTF(&buffer, PHYSFS_getRealDir(path), opts)
     ));
+}
+
+vk::DeviceSize VulkanGltfLoader::computeBufferSize() const
+{
+    vk::DeviceSize size = 0;
+    for (const auto& b : asset.buffers)
+        size += b.byteLength;
+    return padToAlignment(size, 16);
+}
+
+void* VulkanGltfLoader::getStagingPtr(const vk::DeviceSize size)
+{
+    if (stagingBuffer.getInfo().size < size) {
+        vk::BufferCreateInfo createInfo{};
+        createInfo.size = size;
+        createInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        createInfo.sharingMode = vk::SharingMode::eExclusive;
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        allocInfo.priority = 1.0f;
+        allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+        allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        allocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+
+        stagingBuffer = allocator.allocate(createInfo, allocInfo);
+    }
+    return stagingBuffer.getInfo().pMappedData;
 }
 }// namespace dragonfire::vulkan

@@ -45,5 +45,8 @@
   }, {
     "name" : "catch2",
     "version>=" : "3.5.2"
+  }, {
+    "name" : "meshoptimizer",
+    "version>=" : "0.20"
   } ]
 }

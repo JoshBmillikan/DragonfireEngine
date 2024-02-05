@@ -34,6 +34,8 @@ private:
     vk::Device device;
 
     void loadAsset(const char* path);
+    [[nodiscard]] vk::DeviceSize computeBufferSize() const;
+    void* getStagingPtr(vk::DeviceSize size);
 };
 
 }// namespace dragonfire::vulkan
