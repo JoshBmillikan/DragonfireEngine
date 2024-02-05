@@ -6,6 +6,7 @@
 #include "core/file.h"
 #include "core/utility/formatted_error.h"
 #include "core/utility/utility.h"
+#include <fastgltf/tools.hpp>
 
 #include <physfs.h>
 
@@ -38,11 +39,16 @@ VulkanGltfLoader::VulkanGltfLoader(
     resultCheck(device.allocateCommandBuffers(&cmdInfo, &cmd), "Failed to allocate command buffer");
 
     vk::BufferCreateInfo bufInfo{};
+    bufInfo.size = 4096;
     bufInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+    bufInfo.sharingMode = vk::SharingMode::eExclusive;
     VmaAllocationCreateInfo allocInfo{};
+    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    allocInfo.priority = 1.0f;
     allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+    stagingBuffer = allocator.allocate(bufInfo, allocInfo);
 }
 
 VulkanGltfLoader::~VulkanGltfLoader()
@@ -58,7 +64,10 @@ std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
     void* ptr = getStagingPtr(totalSize);
     for (auto& mesh : asset.meshes) {
         for (auto& primitive : mesh.primitives) {
-            
+            if (primitive.indicesAccessor.has_value()) {
+                auto& indices = asset.accessors[primitive.indicesAccessor.value()];
+                fastgltf::copyFromAccessor<uint32_t>(asset, indices, ptr);
+            }
         }
     }
 
