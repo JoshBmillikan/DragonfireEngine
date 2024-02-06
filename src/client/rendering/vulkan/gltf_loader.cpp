@@ -1,14 +1,16 @@
 //
 // Created by josh on 1/29/24.
 //
-
 #include "gltf_loader.h"
 #include "core/file.h"
 #include "core/utility/formatted_error.h"
 #include "core/utility/utility.h"
+#include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
-
+#include <glm/glm.hpp>
+#include <meshoptimizer.h>
 #include <physfs.h>
+#include <spdlog/spdlog.h>
 
 namespace dragonfire::vulkan {
 
@@ -62,15 +64,45 @@ std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
     loadAsset(path);
     const vk::DeviceSize totalSize = computeBufferSize();
     void* ptr = getStagingPtr(totalSize);
+
     for (auto& mesh : asset.meshes) {
+        const auto vertices = static_cast<Vertex*>(ptr);
+        size_t vertexCount = 0;
         for (auto& primitive : mesh.primitives) {
-            if (primitive.indicesAccessor.has_value()) {
-                auto& indices = asset.accessors[primitive.indicesAccessor.value()];
-                fastgltf::copyFromAccessor<uint32_t>(asset, indices, ptr);
+            auto& posAccessor = asset.accessors[primitive.findAttribute("POSITION")->second];
+            fastgltf::iterateAccessor<glm::vec3>(asset, posAccessor, [&](const glm::vec3 pos) {
+                vertices[vertexCount++] = Vertex{.position = pos, .normal = {1, 0, 0}, .uv = {0, 0}};
+            });
+            const auto normals = primitive.findAttribute("NORMAL");
+            if (normals != primitive.attributes.end()) {
+                auto normAccessor = asset.accessors[normals->second];
+                fastgltf::iterateAccessorWithIndex<glm::vec3>(
+                    asset,
+                    normAccessor,
+                    [=](const glm::vec3 norm, const size_t index) { vertices[index].normal = norm; }
+                );
+            }
+            else {
+                SPDLOG_WARN("Mesh {} is missing vertex normals", mesh.name);
             }
         }
-    }
+        const auto indices
+            = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
+        size_t indexCount = 0;
+        for (auto& primitive : mesh.primitives) {
+            if (primitive.indicesAccessor.has_value()) {
+                auto& indicesAccessor = asset.accessors[primitive.indicesAccessor.value()];
+                fastgltf::copyFromAccessor<uint32_t>(asset, indicesAccessor, indices + indexCount);
+                indexCount += indicesAccessor.count;
+            }
+        }
+        if (optimizeMeshes) {
 
+        }
+        meshRegistry.uploadMesh(std::string(mesh.name), stagingBuffer, vertexCount, indexCount);
+
+        ptr = static_cast<char*>(ptr) + vertexCount * sizeof(Vertex) + indexCount * sizeof(uint32_t);
+    }
 
     // TODO
 }

@@ -17,6 +17,7 @@ public:
 protected:
     fastgltf::Parser parser;
     fastgltf::Asset asset;
+    bool optimizeMeshes = true;
 
 };
 }// namespace dragonfire
