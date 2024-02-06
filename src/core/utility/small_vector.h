@@ -8,6 +8,7 @@
 #include <cstring>
 #include <iterator>
 #include <span>
+#include <cstdint>
 
 namespace dragonfire {
 
