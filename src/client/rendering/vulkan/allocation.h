@@ -18,6 +18,7 @@ public:
 
     [[nodiscard]] void* map() const;
     void unmap() const;
+    void flush() const;
 
     GpuAllocation(const GpuAllocation& other) = delete;
     GpuAllocation(GpuAllocation&& other) noexcept;

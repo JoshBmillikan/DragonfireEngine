@@ -25,6 +25,12 @@ void GpuAllocation::unmap() const
     vmaUnmapMemory(allocator, allocation);
 }
 
+void GpuAllocation::flush() const
+{
+    if (vmaFlushAllocation(allocator, allocation, 0, VK_WHOLE_SIZE) != VK_SUCCESS)
+        throw std::runtime_error("Failed to flush gpu memory");
+}
+
 GpuAllocation::GpuAllocation(GpuAllocation&& other) noexcept
     : allocation(other.allocation), allocator(other.allocator), info(other.info)
 {

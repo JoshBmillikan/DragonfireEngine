@@ -24,7 +24,6 @@ public:
 
 private:
     Buffer stagingBuffer;
-    vk::Fence fence;
     MeshRegistry& meshRegistry;
     TextureRegistry& textureRegistry;
     GpuAllocator& allocator;

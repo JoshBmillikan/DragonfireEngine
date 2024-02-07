@@ -4,6 +4,7 @@
 #include "gltf_loader.h"
 #include "core/file.h"
 #include "core/utility/formatted_error.h"
+#include "core/utility/small_vector.h"
 #include "core/utility/utility.h"
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
@@ -30,7 +31,6 @@ VulkanGltfLoader::VulkanGltfLoader(
 )
     : meshRegistry(meshRegistry), textureRegistry(textureRegistry), allocator(allocator), device(ctx.device)
 {
-    fence = ctx.device.createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
     vk::CommandPoolCreateInfo createInfo{};
     createInfo.queueFamilyIndex = ctx.queues.transferFamily;
     pool = device.createCommandPool(createInfo);
@@ -56,7 +56,6 @@ VulkanGltfLoader::VulkanGltfLoader(
 VulkanGltfLoader::~VulkanGltfLoader()
 {
     device.destroy(pool);
-    device.destroy(fence);
 }
 
 std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
@@ -64,6 +63,7 @@ std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
     loadAsset(path);
     const vk::DeviceSize totalSize = computeBufferSize();
     void* ptr = getStagingPtr(totalSize);
+    SmallVector<vk::Fence> fences;
 
     for (auto& mesh : asset.meshes) {
         const auto vertices = static_cast<Vertex*>(ptr);
@@ -82,12 +82,10 @@ std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
                     [=](const glm::vec3 norm, const size_t index) { vertices[index].normal = norm; }
                 );
             }
-            else {
+            else
                 SPDLOG_WARN("Mesh {} is missing vertex normals", mesh.name);
-            }
         }
-        const auto indices
-            = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
+        auto indices = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
         size_t indexCount = 0;
         for (auto& primitive : mesh.primitives) {
             if (primitive.indicesAccessor.has_value()) {
@@ -97,14 +95,46 @@ std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
             }
         }
         if (optimizeMeshes) {
-
+            const size_t baseVertexCount = vertexCount;
+            std::vector<unsigned int> remap(std::max(baseVertexCount, indexCount));
+            vertexCount = meshopt_generateVertexRemap(
+                &remap[0],
+                indices,
+                indexCount,
+                vertices,
+                baseVertexCount,
+                sizeof(Vertex)
+            );
+            meshopt_remapVertexBuffer(vertices, vertices, baseVertexCount, sizeof(Vertex), &remap[0]);
+            const uint32_t* oldIndices = indices;
+            indices = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
+            meshopt_remapIndexBuffer(indices, oldIndices, indexCount, &remap[0]);
+            meshopt_optimizeVertexCache(indices, indices, indexCount, vertexCount);
+            meshopt_optimizeOverdraw(
+                indices,
+                indices,
+                indexCount,
+                &vertices[0].position.x,
+                vertexCount,
+                sizeof(Vertex),
+                1.05f
+            );
+            meshopt_optimizeVertexFetch(vertices, indices, indexCount, vertices, vertexCount, sizeof(Vertex));
         }
-        meshRegistry.uploadMesh(std::string(mesh.name), stagingBuffer, vertexCount, indexCount);
-
+        stagingBuffer.flush();
+        auto [m, fence]
+            = meshRegistry.uploadMesh(std::string(mesh.name), stagingBuffer, vertexCount, indexCount);
+        fences.pushBack(fence);
+        // TODO
         ptr = static_cast<char*>(ptr) + vertexCount * sizeof(Vertex) + indexCount * sizeof(uint32_t);
     }
 
-    // TODO
+    if (device.waitForFences(fences.size(), fences.data(), true, UINT64_MAX) != vk::Result::eSuccess)
+        SPDLOG_ERROR("Fence wait failed");
+    for (const auto fence : fences)
+        device.destroy(fence);
+
+
 }
 
 void VulkanGltfLoader::loadAsset(const char* path)
