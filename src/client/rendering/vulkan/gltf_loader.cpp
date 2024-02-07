@@ -31,15 +31,6 @@ VulkanGltfLoader::VulkanGltfLoader(
 )
     : meshRegistry(meshRegistry), textureRegistry(textureRegistry), allocator(allocator), device(ctx.device)
 {
-    vk::CommandPoolCreateInfo createInfo{};
-    createInfo.queueFamilyIndex = ctx.queues.transferFamily;
-    pool = device.createCommandPool(createInfo);
-    vk::CommandBufferAllocateInfo cmdInfo{};
-    cmdInfo.level = vk::CommandBufferLevel::ePrimary;
-    cmdInfo.commandPool = pool;
-    cmdInfo.commandBufferCount = 1;
-    resultCheck(device.allocateCommandBuffers(&cmdInfo, &cmd), "Failed to allocate command buffer");
-
     vk::BufferCreateInfo bufInfo{};
     bufInfo.size = 4096;
     bufInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
@@ -53,21 +44,56 @@ VulkanGltfLoader::VulkanGltfLoader(
     stagingBuffer = allocator.allocate(bufInfo, allocInfo);
 }
 
-VulkanGltfLoader::~VulkanGltfLoader()
+VulkanGltfLoader::~VulkanGltfLoader() = default;
+
+static void optimizeMesh(
+    Vertex* vertices,
+    size_t& vertexCount,
+    uint32_t* indices,
+    const size_t indexCount,
+    void* ptr
+)
 {
-    device.destroy(pool);
+    const size_t baseVertexCount = vertexCount;
+    std::vector<unsigned int> remap(std::max(baseVertexCount, indexCount));
+    vertexCount = meshopt_generateVertexRemap(
+        &remap[0],
+        indices,
+        indexCount,
+        vertices,
+        baseVertexCount,
+        sizeof(Vertex)
+    );
+    meshopt_remapVertexBuffer(vertices, vertices, baseVertexCount, sizeof(Vertex), &remap[0]);
+    const uint32_t* oldIndices = indices;
+    indices = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
+    meshopt_remapIndexBuffer(indices, oldIndices, indexCount, &remap[0]);
+    meshopt_optimizeVertexCache(indices, indices, indexCount, vertexCount);
+    meshopt_optimizeOverdraw(
+        indices,
+        indices,
+        indexCount,
+        &vertices[0].position.x,
+        vertexCount,
+        sizeof(Vertex),
+        1.05f
+    );
+    meshopt_optimizeVertexFetch(vertices, indices, indexCount, vertices, vertexCount, sizeof(Vertex));
 }
 
-std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
+SmallVector<std::pair<dragonfire::Mesh, Material>> VulkanGltfLoader::load(const char* path)
 {
     loadAsset(path);
     const vk::DeviceSize totalSize = computeBufferSize();
     void* ptr = getStagingPtr(totalSize);
-    SmallVector<vk::Fence> fences;
+    SmallVector<vk::Fence, 12> fences;
+    SmallVector<std::pair<dragonfire::Mesh, Material>> out;
 
     for (auto& mesh : asset.meshes) {
         const auto vertices = static_cast<Vertex*>(ptr);
         size_t vertexCount = 0;
+        if (mesh.primitives.size() > 1)
+            SPDLOG_WARN("Meshes with more than 1 primitive are not fully supported(\"{}\")", mesh.name);
         for (auto& primitive : mesh.primitives) {
             auto& posAccessor = asset.accessors[primitive.findAttribute("POSITION")->second];
             fastgltf::iterateAccessor<glm::vec3>(asset, posAccessor, [&](const glm::vec3 pos) {
@@ -94,38 +120,24 @@ std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
                 indexCount += indicesAccessor.count;
             }
         }
-        if (optimizeMeshes) {
-            const size_t baseVertexCount = vertexCount;
-            std::vector<unsigned int> remap(std::max(baseVertexCount, indexCount));
-            vertexCount = meshopt_generateVertexRemap(
-                &remap[0],
-                indices,
-                indexCount,
-                vertices,
-                baseVertexCount,
-                sizeof(Vertex)
-            );
-            meshopt_remapVertexBuffer(vertices, vertices, baseVertexCount, sizeof(Vertex), &remap[0]);
-            const uint32_t* oldIndices = indices;
-            indices = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
-            meshopt_remapIndexBuffer(indices, oldIndices, indexCount, &remap[0]);
-            meshopt_optimizeVertexCache(indices, indices, indexCount, vertexCount);
-            meshopt_optimizeOverdraw(
-                indices,
-                indices,
-                indexCount,
-                &vertices[0].position.x,
-                vertexCount,
-                sizeof(Vertex),
-                1.05f
-            );
-            meshopt_optimizeVertexFetch(vertices, indices, indexCount, vertices, vertexCount, sizeof(Vertex));
-        }
+        if (optimizeMeshes)
+            optimizeMesh(vertices, vertexCount, indices, indexCount, ptr);
         stagingBuffer.flush();
-        auto [m, fence]
-            = meshRegistry.uploadMesh(std::string(mesh.name), stagingBuffer, vertexCount, indexCount);
+        const size_t vertexOffset = reinterpret_cast<uintptr_t>(vertices)
+                                    - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
+        const size_t indexOffset = reinterpret_cast<uintptr_t>(indices)
+                                   - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
+        auto [m, fence] = meshRegistry.uploadMesh(
+            std::string(mesh.name),
+            stagingBuffer,
+            vertexCount,
+            indexCount,
+            vertexOffset,
+            indexOffset
+        );
+        // TODO material & texture data
         fences.pushBack(fence);
-        // TODO
+        out.emplace(reinterpret_cast<dragonfire::Mesh>(m), Material());
         ptr = static_cast<char*>(ptr) + vertexCount * sizeof(Vertex) + indexCount * sizeof(uint32_t);
     }
 
@@ -133,8 +145,7 @@ std::pair<dragonfire::Mesh, Material> VulkanGltfLoader::load(const char* path)
         SPDLOG_ERROR("Fence wait failed");
     for (const auto fence : fences)
         device.destroy(fence);
-
-
+    return out;
 }
 
 void VulkanGltfLoader::loadAsset(const char* path)
@@ -181,4 +192,5 @@ void* VulkanGltfLoader::getStagingPtr(const vk::DeviceSize size)
     }
     return stagingBuffer.getInfo().pMappedData;
 }
+
 }// namespace dragonfire::vulkan

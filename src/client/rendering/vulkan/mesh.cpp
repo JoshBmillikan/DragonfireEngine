@@ -76,7 +76,8 @@ std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
     const Buffer& stagingBuffer,
     const size_t vertexCount,
     const size_t indexCount,
-    size_t indexOffset
+    size_t indexOffset,
+    const size_t vertexOffset
 )
 {
     if (indexOffset == 0)
@@ -116,7 +117,7 @@ std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
     cmd.begin(beginInfo);
     vk::BufferCopy vertexCopy;
     vertexCopy.size = vertexSize;
-    vertexCopy.srcOffset = 0;
+    vertexCopy.srcOffset = vertexOffset;
     vertexCopy.dstOffset = mesh->vertexInfo.offset;
 
     cmd.copyBuffer(stagingBuffer, vertexBuffer, vertexCopy);

@@ -5,6 +5,7 @@
 #pragma once
 #include "allocation.h"
 #include "client/rendering/base_gltf_loader.h"
+#include "core/utility/small_vector.h"
 #include "mesh.h"
 #include "texture.h"
 
@@ -20,7 +21,7 @@ public:
     );
     ~VulkanGltfLoader() override;
 
-    std::pair<dragonfire::Mesh, Material> load(const char* path) override;
+    SmallVector<std::pair<dragonfire::Mesh, Material>> load(const char* path) override;
 
 private:
     Buffer stagingBuffer;
@@ -28,8 +29,6 @@ private:
     TextureRegistry& textureRegistry;
     GpuAllocator& allocator;
     std::vector<uint8_t> data;
-    vk::CommandPool pool;
-    vk::CommandBuffer cmd;
     vk::Device device;
 
     void loadAsset(const char* path);

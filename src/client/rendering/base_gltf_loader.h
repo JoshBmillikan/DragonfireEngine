@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "core/utility/small_vector.h"
 #include "material.h"
 #include <fastgltf/parser.hpp>
 
@@ -12,7 +13,7 @@ using Mesh = std::uintptr_t;
 class GltfLoader {
 public:
     virtual ~GltfLoader() = default;
-    virtual std::pair<Mesh, Material> load(const char* path) = 0;
+    virtual SmallVector<std::pair<Mesh, Material>> load(const char* path) = 0;
 
 protected:
     fastgltf::Parser parser;

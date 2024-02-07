@@ -37,6 +37,8 @@ add_library(dragonfire-client STATIC
         rendering/material.cpp
         rendering/material.h
         rendering/base_gltf_loader.h
+        rendering/model.cpp
+        rendering/model.h
 )
 target_link_libraries(dragonfire-client PUBLIC dragonfire-core fastgltf::fastgltf)
 target_link_libraries(dragonfire-client PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator meshoptimizer::meshoptimizer unofficial::spirv-reflect::spirv-reflect)
