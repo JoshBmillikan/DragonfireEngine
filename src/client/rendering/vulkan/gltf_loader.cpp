@@ -110,6 +110,15 @@ SmallVector<std::pair<dragonfire::Mesh, Material>> VulkanGltfLoader::load(const 
             }
             else
                 SPDLOG_WARN("Mesh {} is missing vertex normals", mesh.name);
+            const auto texCords = primitive.findAttribute("TEXCOORD_0");
+            if (texCords != primitive.attributes.end()) {
+                auto& uvAccessor = asset.accessors[texCords->second];
+                fastgltf::iterateAccessorWithIndex<glm::vec2>(
+                    asset,
+                    uvAccessor,
+                    [=](const glm::vec2 uv, const size_t index) { vertices[index].uv = uv; }
+                );
+            }
         }
         auto indices = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
         size_t indexCount = 0;
