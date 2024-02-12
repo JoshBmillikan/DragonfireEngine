@@ -41,9 +41,9 @@ private:
         std::mutex mutex;
         std::condition_variable_any condVar;
         uint32_t imageIndex = 0;
-        Frame* frame;
+        Frame* frame = nullptr;
         vk::Result result = vk::Result::eSuccess;
-    }presentData;
+    }presentData{};
     std::jthread presentThread;
 
     void present(const std::stop_token& token);

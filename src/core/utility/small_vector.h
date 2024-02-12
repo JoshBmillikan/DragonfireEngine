@@ -5,10 +5,10 @@
 #pragma once
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <span>
-#include <cstdint>
 
 namespace dragonfire {
 
@@ -27,12 +27,17 @@ public:
 
     [[nodiscard]] size_t size() const noexcept { return std::distance(start, endPtr); }
 
-    [[nodiscard]] bool isSpilled() const noexcept { return reinterpret_cast<intptr_t>(start) != reinterpret_cast<intptr_t>(&inner); }
+    [[nodiscard]] bool isSpilled() const noexcept
+    {
+        return reinterpret_cast<intptr_t>(start) != reinterpret_cast<intptr_t>(&inner);
+    }
 
     [[nodiscard]] size_t capacity() const noexcept
     {
         return isSpilled() ? std::distance(start, inner.cap) : SMALL_SIZE;
     }
+
+    void clear() { endPtr = start; }
 
     T* data() noexcept { return start; }
 

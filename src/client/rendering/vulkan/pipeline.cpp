@@ -301,6 +301,7 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
 void PipelineFactory::savePipelineCache() const
 {
     if (cache) {
+        PHYSFS_mkdir("cache");
         auto data = device.getPipelineCacheData(cache);
         File file(CACHE_PATH, File::Mode::WRITE);
         file.write(std::span(data));
