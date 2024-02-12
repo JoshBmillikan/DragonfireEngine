@@ -48,5 +48,8 @@
   }, {
     "name" : "meshoptimizer",
     "version>=" : "0.20"
+  }, {
+    "name" : "flecs",
+    "version>=" : "3.2.10"
   } ]
 }

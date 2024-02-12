@@ -4,14 +4,15 @@
 
 #pragma once
 #include "allocation.h"
-#include "client/rendering/base_gltf_loader.h"
+#include "client/rendering/model.h"
 #include "core/utility/small_vector.h"
 #include "mesh.h"
 #include "texture.h"
+#include <fastgltf/parser.hpp>
 
 namespace dragonfire::vulkan {
 
-class VulkanGltfLoader final : public GltfLoader {
+class VulkanGltfLoader final : public Model::Loader {
 public:
     VulkanGltfLoader(
         const Context& ctx,
@@ -21,9 +22,11 @@ public:
     );
     ~VulkanGltfLoader() override;
 
-    SmallVector<std::pair<dragonfire::Mesh, Material>> load(const char* path) override;
+    Model load(const char* path) override;
 
 private:
+    fastgltf::Parser parser;
+    fastgltf::Asset asset;
     Buffer stagingBuffer;
     MeshRegistry& meshRegistry;
     TextureRegistry& textureRegistry;

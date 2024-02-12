@@ -81,24 +81,42 @@ static void optimizeMesh(
     meshopt_optimizeVertexFetch(vertices, indices, indexCount, vertices, vertexCount, sizeof(Vertex));
 }
 
-SmallVector<std::pair<dragonfire::Mesh, Material>> VulkanGltfLoader::load(const char* path)
+glm::vec4 computeBounds(const Vertex* vertices, const uint32_t vertexCount)
+{
+    glm::vec4 out{};
+    for (uint32_t i = 0; i < vertexCount; i++) {
+        out.x += vertices[i].position.x;
+        out.y += vertices[i].position.y;
+        out.z += vertices[i].position.z;
+    }
+    out /= vertexCount;
+    for (uint32_t i = 0; i < vertexCount; i++) {
+        glm::vec3 center = out;
+        const float distance = std::abs(glm::distance(center, vertices[i].position));
+        if (distance > out.w)
+            out.w = distance;
+    }
+    return out;
+}
+
+Model VulkanGltfLoader::load(const char* path)
 {
     loadAsset(path);
     const vk::DeviceSize totalSize = computeBufferSize();
     void* ptr = getStagingPtr(totalSize);
     SmallVector<vk::Fence, 12> fences;
-    SmallVector<std::pair<dragonfire::Mesh, Material>> out;
+    Model out(std::string(asset.meshes[0].name));
 
     for (auto& mesh : asset.meshes) {
-        const auto vertices = static_cast<Vertex*>(ptr);
-        size_t vertexCount = 0;
-        if (mesh.primitives.size() > 1)
-            SPDLOG_WARN("Meshes with more than 1 primitive are not fully supported(\"{}\")", mesh.name);
+        uint32_t primitiveId = 0;
         for (auto& primitive : mesh.primitives) {
+            const auto vertices = static_cast<Vertex*>(ptr);
+            size_t vertexCount = 0;
             auto& posAccessor = asset.accessors[primitive.findAttribute("POSITION")->second];
             fastgltf::iterateAccessor<glm::vec3>(asset, posAccessor, [&](const glm::vec3 pos) {
                 vertices[vertexCount++] = Vertex{.position = pos, .normal = {1, 0, 0}, .uv = {0, 0}};
             });
+
             const auto normals = primitive.findAttribute("NORMAL");
             if (normals != primitive.attributes.end()) {
                 auto normAccessor = asset.accessors[normals->second];
@@ -110,6 +128,7 @@ SmallVector<std::pair<dragonfire::Mesh, Material>> VulkanGltfLoader::load(const 
             }
             else
                 SPDLOG_WARN("Mesh {} is missing vertex normals", mesh.name);
+
             const auto texCords = primitive.findAttribute("TEXCOORD_0");
             if (texCords != primitive.attributes.end()) {
                 auto& uvAccessor = asset.accessors[texCords->second];
@@ -119,35 +138,37 @@ SmallVector<std::pair<dragonfire::Mesh, Material>> VulkanGltfLoader::load(const 
                     [=](const glm::vec2 uv, const size_t index) { vertices[index].uv = uv; }
                 );
             }
-        }
-        auto indices = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
-        size_t indexCount = 0;
-        for (auto& primitive : mesh.primitives) {
+
+            auto indices
+                = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
+            size_t indexCount = 0;
             if (primitive.indicesAccessor.has_value()) {
                 auto& indicesAccessor = asset.accessors[primitive.indicesAccessor.value()];
                 fastgltf::copyFromAccessor<uint32_t>(asset, indicesAccessor, indices + indexCount);
                 indexCount += indicesAccessor.count;
             }
+            if (optimizeMeshes)
+                optimizeMesh(vertices, vertexCount, indices, indexCount, ptr);
+            stagingBuffer.flush();
+
+            const size_t vertexOffset = reinterpret_cast<uintptr_t>(vertices)
+                                        - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
+            const size_t indexOffset = reinterpret_cast<uintptr_t>(indices)
+                                       - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
+
+            const auto name = primitiveId > 0 ? fmt::format("{}_{}", mesh.name, primitiveId)
+                                              : std::string(mesh.name);
+            const glm::vec4 bounds = computeBounds(vertices, vertexCount);
+            auto [m, fence]
+                = meshRegistry
+                      .uploadMesh(name, stagingBuffer, vertexCount, indexCount, vertexOffset, indexOffset);
+            fences.pushBack(fence);
+            out.addPrimitive(dragonfire::Mesh(m), nullptr, bounds);
+
+            ptr = static_cast<char*>(ptr) + vertexCount * sizeof(Vertex) + indexCount * sizeof(uint32_t);
         }
-        if (optimizeMeshes)
-            optimizeMesh(vertices, vertexCount, indices, indexCount, ptr);
-        stagingBuffer.flush();
-        const size_t vertexOffset = reinterpret_cast<uintptr_t>(vertices)
-                                    - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
-        const size_t indexOffset = reinterpret_cast<uintptr_t>(indices)
-                                   - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
-        auto [m, fence] = meshRegistry.uploadMesh(
-            std::string(mesh.name),
-            stagingBuffer,
-            vertexCount,
-            indexCount,
-            vertexOffset,
-            indexOffset
-        );
+
         // TODO material & texture data
-        fences.pushBack(fence);
-        out.emplace(reinterpret_cast<dragonfire::Mesh>(m), Material());
-        ptr = static_cast<char*>(ptr) + vertexCount * sizeof(Vertex) + indexCount * sizeof(uint32_t);
     }
 
     if (device.waitForFences(fences.size(), fences.data(), true, UINT64_MAX) != vk::Result::eSuccess)

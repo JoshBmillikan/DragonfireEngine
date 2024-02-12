@@ -36,7 +36,6 @@ add_library(dragonfire-client STATIC
         rendering/camera.h
         rendering/material.cpp
         rendering/material.h
-        rendering/base_gltf_loader.h
         rendering/model.cpp
         rendering/model.h
 )

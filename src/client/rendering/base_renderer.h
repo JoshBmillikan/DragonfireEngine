@@ -3,10 +3,12 @@
 //
 
 #pragma once
+#include "core/world/transform.h"
 #include <SDL_video.h>
 #include <spdlog/logger.h>
 
 namespace dragonfire {
+class Model;
 
 class BaseRenderer {
 public:
