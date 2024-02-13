@@ -21,7 +21,6 @@ public:
     explicit VulkanRenderer(bool enableValidation);
     ~VulkanRenderer() override;
 
-
     struct Frame {
         vk::Semaphore renderingSemaphore, presentSemaphore;
     };
@@ -43,7 +42,8 @@ private:
         uint32_t imageIndex = 0;
         Frame* frame = nullptr;
         vk::Result result = vk::Result::eSuccess;
-    }presentData{};
+    } presentData{};
+
     std::jthread presentThread;
 
     void present(const std::stop_token& token);

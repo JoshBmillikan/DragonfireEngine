@@ -186,7 +186,7 @@ void MeshRegistry::freeMesh(const Mesh* mesh)
     }
 }
 
-Mesh* MeshRegistry::getMesh(std::string_view id)
+Mesh* MeshRegistry::getMesh(const std::string_view id)
 {
     std::shared_lock lock(mutex);
     const auto iter = meshes.find(id);
