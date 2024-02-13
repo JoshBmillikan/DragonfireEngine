@@ -23,6 +23,7 @@ public:
 
     struct Frame {
         vk::Semaphore renderingSemaphore, presentSemaphore;
+        vk::CommandBuffer cmd;
     };
 
     static constexpr int FRAMES_IN_FLIGHT = 2;

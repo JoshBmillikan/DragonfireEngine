@@ -21,6 +21,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
         VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
         VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
     };
+
     vk::PhysicalDeviceFeatures2 enabledFeatures{};
     enabledFeatures.features.samplerAnisotropy = true;
     enabledFeatures.features.sampleRateShading = true;
@@ -72,8 +73,20 @@ void vulkan::VulkanRenderer::present(const std::stop_token& token)
         if (token.stop_requested())
             break;
 
+        vk::CommandBufferSubmitInfo cmdInfo{};
+        cmdInfo.commandBuffer = presentData.frame->cmd;
+        vk::SemaphoreSubmitInfo signal{}, wait{};
+        signal.semaphore = presentData.frame->presentSemaphore;
+        wait.semaphore = presentData.frame->renderingSemaphore;
+        // todo semaphore
         vk::SubmitInfo2 submitInfo{};
+        submitInfo.commandBufferInfoCount = 1;
+        submitInfo.pCommandBufferInfos = &cmdInfo;
+        submitInfo.signalSemaphoreInfoCount = submitInfo.waitSemaphoreInfoCount = 1;
+        submitInfo.pSignalSemaphoreInfos = &signal;
+        submitInfo.pWaitSemaphoreInfos = &wait;
 
+        context.queues.graphics.submit2(submitInfo);
 
         vk::PresentInfoKHR presentInfo{};
         vk::SwapchainKHR swapchainKhr = swapchain;
