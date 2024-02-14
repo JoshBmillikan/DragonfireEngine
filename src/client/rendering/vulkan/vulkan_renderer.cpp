@@ -4,6 +4,7 @@
 
 #include "vulkan_renderer.h"
 #include "core/config.h"
+#include "core/crash.h"
 #include <spdlog/spdlog.h>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -48,6 +49,8 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
     descriptorLayoutManager = DescriptorLayoutManager(context.device);
     pipelineFactory = std::make_unique<PipelineFactory>(context, &descriptorLayoutManager);
 
+    for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
+        frames[i] = Frame(context, allocator);
     presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
 }
 
@@ -74,6 +77,28 @@ vulkan::VulkanRenderer::~VulkanRenderer()
     allocator.destroy();
     context.destroy();
     spdlog::get("Rendering")->info("Vulkan shutdown complete");
+}
+
+vulkan::VulkanRenderer::Frame::Frame(const Context& ctx, const GpuAllocator& allocator)
+{
+    vk::CommandPoolCreateInfo createInfo{};
+    createInfo.queueFamilyIndex = ctx.queues.graphicsFamily;
+    createInfo.flags = vk::CommandPoolCreateFlagBits::eTransient;
+    pool = ctx.device.createCommandPool(createInfo);
+    vk::CommandBufferAllocateInfo cmdInfo{};
+    cmdInfo.commandPool = pool;
+    cmdInfo.level = vk::CommandBufferLevel::ePrimary;
+    cmdInfo.commandBufferCount = 1;
+    if (ctx.device.allocateCommandBuffers(&cmdInfo, &cmd) != vk::Result::eSuccess)
+        crash("Failed to allocate command bufferes");
+    fence = ctx.device.createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
+    renderingSemaphore = ctx.device.createSemaphore(vk::SemaphoreCreateInfo());
+    presentSemaphore = ctx.device.createSemaphore(vk::SemaphoreCreateInfo());
+
+    vk::BufferCreateInfo bufferInfo{};
+    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
+    //TODO
+    VmaAllocationCreateInfo allocInfo{};
 }
 
 void vulkan::VulkanRenderer::present(const std::stop_token& token)

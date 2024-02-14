@@ -29,6 +29,8 @@ public:
         Buffer drawData, culledMatrices, commandBuffer, countBuffer, textureIndexBuffer;
         vk::Fence fence;
         uint32_t textureBinding = 0;
+        Frame() = default;
+        Frame(const Context& ctx, const GpuAllocator& allocator);
     };
 
     static constexpr int FRAMES_IN_FLIGHT = 2;
