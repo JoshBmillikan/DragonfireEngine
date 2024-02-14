@@ -30,10 +30,11 @@ public:
         vk::Fence fence;
         uint32_t textureBinding = 0;
         Frame() = default;
-        Frame(const Context& ctx, const GpuAllocator& allocator);
+        Frame(const Context& ctx, const GpuAllocator& allocator, size_t maxDrawCount);
     };
 
     static constexpr int FRAMES_IN_FLIGHT = 2;
+    const size_t maxDrawCount;
 
 private:
     Context context;

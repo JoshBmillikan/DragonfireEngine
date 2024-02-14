@@ -11,7 +11,8 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace dragonfire {
 
-vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL_WINDOW_VULKAN)
+vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
+    : BaseRenderer(SDL_WINDOW_VULKAN), maxDrawCount(Config::get().getInt("maxDrawCount").value_or(1 << 14))
 {
     enableValidation = enableValidation || std::getenv("VALIDATION_LAYERS");
     std::array enabledExtensions = {
@@ -50,7 +51,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation) : BaseRenderer(SDL
     pipelineFactory = std::make_unique<PipelineFactory>(context, &descriptorLayoutManager);
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
-        frames[i] = Frame(context, allocator);
+        frames[i] = Frame(context, allocator, maxDrawCount);
     presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
 }
 
@@ -79,9 +80,12 @@ vulkan::VulkanRenderer::~VulkanRenderer()
     spdlog::get("Rendering")->info("Vulkan shutdown complete");
 }
 
-vulkan::VulkanRenderer::Frame::Frame(const Context& ctx, const GpuAllocator& allocator)
+vulkan::VulkanRenderer::Frame::Frame(
+    const Context& ctx,
+    const GpuAllocator& allocator,
+    const size_t maxDrawCount
+)
 {
-    const size_t maxDrawCount = Config::get().getInt("maxDrawCount").value_or(1 << 14);
     vk::CommandPoolCreateInfo createInfo{};
     createInfo.queueFamilyIndex = ctx.queues.graphicsFamily;
     createInfo.flags = vk::CommandPoolCreateFlagBits::eTransient;
