@@ -81,6 +81,7 @@ vulkan::VulkanRenderer::~VulkanRenderer()
 
 vulkan::VulkanRenderer::Frame::Frame(const Context& ctx, const GpuAllocator& allocator)
 {
+    const size_t maxDrawCount = Config::get().getInt("maxDrawCount").value_or(1 << 14);
     vk::CommandPoolCreateInfo createInfo{};
     createInfo.queueFamilyIndex = ctx.queues.graphicsFamily;
     createInfo.flags = vk::CommandPoolCreateFlagBits::eTransient;
@@ -96,9 +97,32 @@ vulkan::VulkanRenderer::Frame::Frame(const Context& ctx, const GpuAllocator& all
     presentSemaphore = ctx.device.createSemaphore(vk::SemaphoreCreateInfo());
 
     vk::BufferCreateInfo bufferInfo{};
+    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
     bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
-    //TODO
+    bufferInfo.size = maxDrawCount * sizeof(DrawData);
     VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    drawData = allocator.allocate(bufferInfo, allocInfo);
+    bufferInfo.size = maxDrawCount * sizeof(glm::mat4);
+    allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocInfo.flags = 0;
+    culledMatrices = allocator.allocate(bufferInfo, allocInfo);
+    bufferInfo.usage |= vk::BufferUsageFlagBits::eIndirectBuffer;
+    bufferInfo.size = maxDrawCount * sizeof(vk::DrawIndexedIndirectCommand);
+    commandBuffer = allocator.allocate(bufferInfo, allocInfo);
+    bufferInfo.size = maxDrawCount * sizeof(uint32_t);
+    allocInfo.preferredFlags = 0;
+    countBuffer = allocator.allocate(bufferInfo, allocInfo);
+    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
+    bufferInfo.size = maxDrawCount * sizeof(TextureIds);
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+    textureIndexBuffer = allocator.allocate(bufferInfo, allocInfo);
+
+    // TODO descriptor sets
 }
 
 void vulkan::VulkanRenderer::present(const std::stop_token& token)
