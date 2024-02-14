@@ -56,6 +56,17 @@ vulkan::VulkanRenderer::~VulkanRenderer()
     presentThread.request_stop();
     context.device.waitIdle();
     presentThread.join();
+    for (Frame& frame : frames) {
+        context.device.destroy(frame.pool);
+        context.device.destroy(frame.presentSemaphore);
+        context.device.destroy(frame.renderingSemaphore);
+        context.device.destroy(frame.fence);
+        frame.drawData.destroy();
+        frame.culledMatrices.destroy();
+        frame.commandBuffer.destroy();
+        frame.countBuffer.destroy();
+        frame.textureIndexBuffer.destroy();
+    }
     pipelineFactory.reset();
     descriptorLayoutManager.destroy();
     meshRegistry.reset();

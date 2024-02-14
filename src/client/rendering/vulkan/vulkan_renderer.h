@@ -9,7 +9,7 @@
 #include "mesh.h"
 #include "pipeline.h"
 #include "swapchain.h"
-
+#include "texture.h"
 #include <client/rendering/base_renderer.h>
 #include <condition_variable>
 #include <thread>
@@ -24,6 +24,11 @@ public:
     struct Frame {
         vk::Semaphore renderingSemaphore, presentSemaphore;
         vk::CommandBuffer cmd;
+        vk::CommandPool pool;
+        vk::DescriptorSet globalDescriptorSet, computeSet, frameSet;
+        Buffer drawData, culledMatrices, commandBuffer, countBuffer, textureIndexBuffer;
+        vk::Fence fence;
+        uint32_t textureBinding = 0;
     };
 
     static constexpr int FRAMES_IN_FLIGHT = 2;
@@ -46,6 +51,18 @@ private:
     } presentData{};
 
     std::jthread presentThread;
+
+    struct alignas(16) DrawData {
+        glm::mat4 transform{};
+        uint32_t vertexOffset = 0, vertexCount = 0, indexOffset = 0, indexCount = 0;
+        TextureIds textureIndices;
+        glm::vec4 boundingSphere;
+    };
+
+    struct PipelineDrawInfo {
+        uint32_t index = 0, drawCount = 0;
+        vk::PipelineLayout layout;
+    };
 
     void present(const std::stop_token& token);
 };
