@@ -3,12 +3,15 @@
 //
 
 #pragma once
+#include <Jolt/Jolt.h>
+#include <Jolt/Physics/PhysicsSystem.h>
 #include <flecs.h>
 
 namespace dragonfire {
 
 class GameWorld {
     flecs::world world;
+    JPH::PhysicsSystem physicsSystem;
 };
 
 } // dragonfire

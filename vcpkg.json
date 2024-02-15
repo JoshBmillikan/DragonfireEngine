@@ -25,9 +25,6 @@
     "name" : "physfs",
     "version>=" : "3.2.0#1"
   }, {
-    "name" : "joltphysics",
-    "version>=" : "4.0.0"
-  }, {
     "name" : "gamenetworkingsockets",
     "version>=" : "1.4.1#1"
   }, {
