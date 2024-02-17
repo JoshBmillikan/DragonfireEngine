@@ -64,12 +64,17 @@ BaseRenderer::~BaseRenderer() noexcept
 
 void BaseRenderer::addDrawable(const Model* model, const Transform& transform)
 {
-    drawables[model].push_back(transform);
+    for (size_t i = 0; i < model->primitiveCount(); i++) {
+        const Model::Primitive& primitive = (*model)[i];
+        glm::mat4 base = transform.toMatrix();
+        drawables[primitive.material]
+            .emplace_back(primitive.mesh, base * primitive.transform, primitive.bounds);
+    }
 }
 
 void BaseRenderer::addDrawables(const Model* model, const std::span<Transform> transforms)
 {
-    for (auto t : transforms)
+    for (auto& t : transforms)
         addDrawable(model, t);
 }
 

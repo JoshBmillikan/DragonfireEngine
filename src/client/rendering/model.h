@@ -51,6 +51,8 @@ public:
 
     const Primitive& operator[](const size_t index) const { return primitives[index]; }
 
+    [[nodiscard]] size_t primitiveCount() const { return primitives.size(); }
+
 private:
     std::string name;
     SmallVector<Primitive> primitives;

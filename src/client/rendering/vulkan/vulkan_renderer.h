@@ -22,7 +22,7 @@ public:
     ~VulkanRenderer() override;
 
     static constexpr int FRAMES_IN_FLIGHT = 2;
-    const size_t maxDrawCount;
+    const uint32_t maxDrawCount;
 
 protected:
     void beginFrame(const Camera& camera) override;
@@ -39,7 +39,7 @@ private:
         vk::Fence fence;
         uint32_t textureBinding = 0;
         Frame() = default;
-        Frame(const Context& ctx, const GpuAllocator& allocator, size_t maxDrawCount);
+        Frame(const Context& ctx, const GpuAllocator& allocator, uint32_t maxDrawCount);
     };
 
     Context context;
@@ -48,6 +48,8 @@ private:
     std::unique_ptr<MeshRegistry> meshRegistry;
     DescriptorLayoutManager descriptorLayoutManager;
     std::unique_ptr<PipelineFactory> pipelineFactory;
+    Image depthBuffer, msaaImage;
+    vk::ImageView depthView, msaaView;
     std::array<Frame, FRAMES_IN_FLIGHT> frames;
     Buffer globalUBO;
     vk::DeviceSize uboOffset = 0;

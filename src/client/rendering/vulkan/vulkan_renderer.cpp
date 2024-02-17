@@ -60,9 +60,59 @@ void vulkan::VulkanRenderer::beginFrame(const Camera& camera)
 {
     waitForLastFrame();
     writeGlobalUBO(camera);
+    const Frame& frame = getCurrentFrame();
+    context.device.resetCommandPool(frame.pool);
+    vk::CommandBufferBeginInfo beginInfo{};
+    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+    frame.cmd.begin(beginInfo);
+
+    vk::RenderingAttachmentInfo color{}, depth{};
+    color.clearValue = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f};
+    color.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    color.imageView = swapchain.currentView();
+    color.loadOp = vk::AttachmentLoadOp::eClear;
+    color.storeOp = vk::AttachmentStoreOp::eStore;
+    color.resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    color.resolveImageView = msaaView;
+    color.resolveMode = vk::ResolveModeFlagBits::eAverage;
+
+    depth.clearValue = vk::ClearDepthStencilValue{1.0f, 0};
+    depth.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    depth.imageView = depthView;
+    depth.loadOp = vk::AttachmentLoadOp::eClear;
+    depth.storeOp = vk::AttachmentStoreOp::eDontCare;
+
+    vk::RenderingInfo renderingInfo{};
+    renderingInfo.colorAttachmentCount = 1;
+    renderingInfo.pColorAttachments = &color;
+    renderingInfo.pDepthAttachment = &depth;
+    renderingInfo.layerCount = 1;
+    renderingInfo.renderArea = vk::Rect2D(vk::Offset2D{}, swapchain.getExtent());
+
+    frame.cmd.beginRendering(renderingInfo);
 }
 
-void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& models) {}
+void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& models)
+{
+    if (models.empty())
+        return;
+    uint32_t drawCount = 0;
+    const Material* lastMaterial = nullptr;
+    for (auto& [material, draws] : models) {
+        if (material != lastMaterial) {
+            lastMaterial = material;
+            // TODO bind material
+        }
+        for (auto& draw : draws) {
+            if (drawCount >= maxDrawCount) {
+                logger->error("Max draw count exceeded, some models may not be drawn");
+                break;
+            }
+
+            drawCount++;
+        }
+    }
+}
 
 void vulkan::VulkanRenderer::endFrame()
 {
@@ -104,7 +154,7 @@ vulkan::VulkanRenderer::~VulkanRenderer()
 vulkan::VulkanRenderer::Frame::Frame(
     const Context& ctx,
     const GpuAllocator& allocator,
-    const size_t maxDrawCount
+    const uint32_t maxDrawCount
 )
 {
     vk::CommandPoolCreateInfo createInfo{};
