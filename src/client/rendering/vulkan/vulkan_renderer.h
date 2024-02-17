@@ -21,6 +21,15 @@ public:
     explicit VulkanRenderer(bool enableValidation);
     ~VulkanRenderer() override;
 
+    static constexpr int FRAMES_IN_FLIGHT = 2;
+    const size_t maxDrawCount;
+
+protected:
+    void beginFrame(const Camera& camera) override;
+    void drawModels(const Camera& camera, const Drawables& models) override;
+    void endFrame() override;
+
+private:
     struct Frame {
         vk::Semaphore renderingSemaphore, presentSemaphore;
         vk::CommandBuffer cmd;
@@ -33,10 +42,6 @@ public:
         Frame(const Context& ctx, const GpuAllocator& allocator, size_t maxDrawCount);
     };
 
-    static constexpr int FRAMES_IN_FLIGHT = 2;
-    const size_t maxDrawCount;
-
-private:
     Context context;
     GpuAllocator allocator;
     Swapchain swapchain;
@@ -44,6 +49,8 @@ private:
     DescriptorLayoutManager descriptorLayoutManager;
     std::unique_ptr<PipelineFactory> pipelineFactory;
     std::array<Frame, FRAMES_IN_FLIGHT> frames;
+    Buffer globalUBO;
+    vk::DeviceSize uboOffset = 0;
 
     struct {
         std::mutex mutex;
@@ -67,7 +74,24 @@ private:
         vk::PipelineLayout layout;
     };
 
+    void waitForLastFrame();
+    void writeGlobalUBO(const Camera& camera) const;
     void present(const std::stop_token& token);
+
+    const Frame& getCurrentFrame() const { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
+
+    Frame& getCurrentFrame() { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
+};
+
+struct UBOData {
+    alignas(16) glm::mat4 perspective;
+    alignas(16) glm::mat4 orthographic;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::vec3 sunDirection;
+    alignas(16) glm::vec3 cameraPosition;
+    alignas(16) glm::vec2 resolution;
+    alignas(16) glm::vec4 frustum;
+    float P00, P11, zNear, zFar;
 };
 
 }// namespace dragonfire::vulkan

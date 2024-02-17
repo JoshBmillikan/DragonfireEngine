@@ -8,6 +8,7 @@ find_package(magic_enum CONFIG REQUIRED)
 find_package(GameNetworkingSockets CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(flecs CONFIG REQUIRED)
+find_package(unordered_dense CONFIG REQUIRED)
 
 add_library(dragonfire-core STATIC
         engine.cpp
@@ -34,7 +35,7 @@ add_library(dragonfire-core STATIC
 target_link_libraries(dragonfire-core PUBLIC SDL2::SDL2 nlohmann_json::nlohmann_json fmt::fmt
         glm::glm spdlog::spdlog Jolt cxxopts::cxxopts
         $<IF:$<TARGET_EXISTS:PhysFS::PhysFS>,PhysFS::PhysFS,PhysFS::PhysFS-static>
-        magic_enum::magic_enum GameNetworkingSockets::shared
+        magic_enum::magic_enum GameNetworkingSockets::shared unordered_dense::unordered_dense
         $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static>)
 target_compile_definitions(dragonfire-core PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
 

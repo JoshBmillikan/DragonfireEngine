@@ -48,5 +48,8 @@
   }, {
     "name" : "flecs",
     "version>=" : "3.2.10"
+  }, {
+    "name" : "unordered-dense",
+    "version>=" : "4.4.0"
   } ]
 }

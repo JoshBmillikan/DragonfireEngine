@@ -3,8 +3,10 @@
 //
 
 #include "base_renderer.h"
+
 #include "core/config.h"
 #include "core/crash.h"
+#include "model.h"
 #include <spdlog/spdlog.h>
 
 namespace dragonfire {
@@ -58,6 +60,30 @@ BaseRenderer::BaseRenderer(int windowFlags) : BaseRenderer()
 BaseRenderer::~BaseRenderer() noexcept
 {
     SDL_DestroyWindow(window);
+}
+
+void BaseRenderer::addDrawable(const Model* model, const Transform& transform)
+{
+    drawables[model].push_back(transform);
+}
+
+void BaseRenderer::addDrawables(const Model* model, const std::span<Transform> transforms)
+{
+    for (auto t : transforms)
+        addDrawable(model, t);
+}
+
+void BaseRenderer::render(const Camera& camera)
+{
+    beginFrame(camera);
+    drawModels(camera, drawables);
+    endFrame();
+}
+
+void BaseRenderer::endFrame()
+{
+    drawables.clear();
+    frameCount++;
 }
 
 }// namespace dragonfire

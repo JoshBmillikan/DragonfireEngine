@@ -6,6 +6,7 @@
 #include "core/config.h"
 #include "core/crash.h"
 #include <spdlog/spdlog.h>
+#include <vulkan/vulkan_to_string.hpp>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -53,6 +54,26 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
         frames[i] = Frame(context, allocator, maxDrawCount);
     presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
+}
+
+void vulkan::VulkanRenderer::beginFrame(const Camera& camera)
+{
+    waitForLastFrame();
+    writeGlobalUBO(camera);
+}
+
+void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& models) {}
+
+void vulkan::VulkanRenderer::endFrame()
+{
+    Frame& frame = getCurrentFrame();
+    frame.cmd.end();
+    {
+        std::unique_lock lock(presentData.mutex);
+        presentData.frame = &frame;
+    }
+    presentData.condVar.notify_one();
+    BaseRenderer::endFrame();
 }
 
 vulkan::VulkanRenderer::~VulkanRenderer()
@@ -129,12 +150,69 @@ vulkan::VulkanRenderer::Frame::Frame(
     // TODO descriptor sets
 }
 
+void vulkan::VulkanRenderer::waitForLastFrame()
+{
+    vk::Result result;
+    {
+        std::unique_lock lock(presentData.mutex);
+        if (presentData.frame)
+            presentData.condVar.wait(lock, [&] { return presentData.frame == nullptr; });
+        result = presentData.result;
+    }
+    const Frame& frame = getCurrentFrame();
+    if (context.device.waitForFences(frame.fence, true, UINT64_MAX) != vk::Result::eSuccess)
+        logger->error("Fence wait failed, attempting to continue, but things may break");
+
+    int retries = 0;
+    do {
+        if (retries > 10)
+            crash("Swapchain recreation failed, maximum number of retries exceeded");
+        switch (result) {
+            case vk::Result::eSuccess: break;
+            case vk::Result::eSuboptimalKHR:
+            case vk::Result::eErrorOutOfDateKHR: {
+                const bool vsync = Config::get().getBool("vsync").value_or(true);
+                context.device.waitIdle();
+                swapchain = Swapchain(getWindow(), context, vsync, swapchain);
+                break;
+            }
+            default: crash("Failed to acquire next swapchain image: {}", to_string(result));
+        }
+        result = swapchain.next(frame.renderingSemaphore);
+        retries++;
+    } while (result != vk::Result::eSuccess);
+    context.device.resetFences(frame.fence);
+}
+
+void vulkan::VulkanRenderer::writeGlobalUBO(const Camera& camera) const
+{
+    auto ptr = static_cast<char*>(globalUBO.getInfo().pMappedData);
+    ptr += uboOffset * (getFrameCount() % FRAMES_IN_FLIGHT);
+    const auto data = reinterpret_cast<UBOData*>(ptr);
+    const glm::mat4 view = camera.getViewMatrix();
+    data->orthographic = camera.orthograhpic * view;
+    data->perspective = camera.perspective * view;
+    data->view = view;
+    data->resolution = glm::vec2(swapchain.getExtent().width, swapchain.getExtent().height);
+    data->cameraPosition = glm::vec3(view * glm::vec4(camera.position, 1.0));
+    data->sunDirection = glm::normalize(glm::vec3(-0.2f, -0.3f, 1.0f));
+    auto [frustumX, frustumY] = camera.getFrustumPlanes();
+    data->frustum.x = frustumX.x;
+    data->frustum.y = frustumX.z;
+    data->frustum.z = frustumY.y;
+    data->frustum.w = frustumY.z;
+    data->P00 = camera.perspective[0][0];
+    data->P11 = camera.perspective[1][1];
+    data->zNear = camera.getZNear();
+    data->zFar = camera.getZFar();
+}
+
 void vulkan::VulkanRenderer::present(const std::stop_token& token)
 {
     while (!token.stop_requested()) {
         std::unique_lock lock(presentData.mutex);
         presentData.condVar.wait(lock, token, [&] { return presentData.frame != nullptr; });
-        if (token.stop_requested())
+        if (token.stop_requested() || presentData.frame == nullptr)
             break;
 
         vk::CommandBufferSubmitInfo cmdInfo{};
@@ -142,7 +220,9 @@ void vulkan::VulkanRenderer::present(const std::stop_token& token)
         vk::SemaphoreSubmitInfo signal{}, wait{};
         signal.semaphore = presentData.frame->presentSemaphore;
         wait.semaphore = presentData.frame->renderingSemaphore;
-        // todo semaphore
+        signal.stageMask = vk::PipelineStageFlagBits2::eAllGraphics;
+        wait.stageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput;
+
         vk::SubmitInfo2 submitInfo{};
         submitInfo.commandBufferInfoCount = 1;
         submitInfo.pCommandBufferInfos = &cmdInfo;
@@ -160,7 +240,12 @@ void vulkan::VulkanRenderer::present(const std::stop_token& token)
         presentInfo.pWaitSemaphores = &presentData.frame->presentSemaphore;
         presentInfo.waitSemaphoreCount = 1;
         presentData.result = context.queues.present.presentKHR(presentInfo);
+        presentData.frame = nullptr;
+        lock.unlock();
+        presentData.condVar.notify_one();
     }
+    context.queues.present.waitIdle();
+    logger->trace("Presentation thread destroyed");
 }
 
 }// namespace dragonfire
