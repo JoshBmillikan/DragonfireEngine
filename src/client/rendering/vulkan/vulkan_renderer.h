@@ -53,6 +53,8 @@ private:
     std::array<Frame, FRAMES_IN_FLIGHT> frames;
     Buffer globalUBO;
     vk::DeviceSize uboOffset = 0;
+    Pipeline cullPipeline;
+    vk::PipelineLayout cullComputeLayout;
 
     struct {
         std::mutex mutex;
@@ -76,6 +78,7 @@ private:
         vk::PipelineLayout layout;
     };
 
+    void computePrePass(uint32_t drawCount, bool cull);
     void waitForLastFrame();
     void writeGlobalUBO(const Camera& camera) const;
     void present(const std::stop_token& token);

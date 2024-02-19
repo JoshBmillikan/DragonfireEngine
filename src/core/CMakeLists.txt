@@ -27,6 +27,7 @@ add_library(dragonfire-core STATIC
         config.h
         utility/rng.cpp
         utility/rng.h
+        utility/math_utils.h
         utility/small_vector.h
         world/transform.h
         world/game_world.cpp

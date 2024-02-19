@@ -5,6 +5,7 @@
 #include "vulkan_renderer.h"
 #include "core/config.h"
 #include "core/crash.h"
+#include <core/utility/math_utils.h>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan_to_string.hpp>
 
@@ -97,6 +98,8 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
     if (models.empty())
         return;
     uint32_t drawCount = 0;
+    const Frame& frame = getCurrentFrame();
+    DrawData* drawData = static_cast<DrawData*>(frame.drawData.getInfo().pMappedData);
     const Material* lastMaterial = nullptr;
     for (auto& [material, draws] : models) {
         if (material != lastMaterial) {
@@ -108,8 +111,17 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
                 logger->error("Max draw count exceeded, some models may not be drawn");
                 break;
             }
-
-            drawCount++;
+            DrawData& data = drawData[drawCount++];
+            data.transform = draw.transform;
+            data.boundingSphere = draw.bounds;
+            data.boundingSphere.w *= getMatrixScaleFactor(draw.transform);
+            const Mesh* mesh = reinterpret_cast<Mesh*>(draw.mesh);
+            data.vertexOffset = mesh->vertexInfo.offset;
+            data.indexOffset = mesh->indexInfo.offset;
+            data.vertexCount = mesh->vertexCount;
+            data.indexCount = mesh->indexCount;
+            data.textureIndices = material->getTextures();
+            // TODO pipelines
         }
     }
 }
@@ -198,6 +210,15 @@ vulkan::VulkanRenderer::Frame::Frame(
     textureIndexBuffer = allocator.allocate(bufferInfo, allocInfo);
 
     // TODO descriptor sets
+}
+
+void vulkan::VulkanRenderer::computePrePass(uint32_t drawCount, bool cull)
+{
+    Frame& frame = getCurrentFrame();
+    const vk::CommandBuffer cmd = frame.cmd;
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, cullComputeLayout, 0, frame.computeSet, {});
+    cullPipeline.bind(cmd);
+    uint32_t baseIndex = 0;
 }
 
 void vulkan::VulkanRenderer::waitForLastFrame()
