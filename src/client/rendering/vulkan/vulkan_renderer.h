@@ -55,6 +55,7 @@ private:
     vk::DeviceSize uboOffset = 0;
     Pipeline cullPipeline;
     vk::PipelineLayout cullComputeLayout;
+    std::vector<Pipeline> pipelines;
 
     struct {
         std::mutex mutex;
@@ -77,6 +78,8 @@ private:
         uint32_t index = 0, drawCount = 0;
         vk::PipelineLayout layout;
     };
+
+    ankerl::unordered_dense::map<vk::Pipeline, PipelineDrawInfo> pipelineMap;
 
     void computePrePass(uint32_t drawCount, bool cull);
     void waitForLastFrame();

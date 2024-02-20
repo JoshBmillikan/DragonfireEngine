@@ -16,8 +16,16 @@ struct alignas(16) TextureIds {
 
 class Material {
     TextureIds textureIds;
+    uint32_t pipelineId = 0;
 
 public:
+    Material(const TextureIds& textureIds, const uint32_t pipelineId)
+        : textureIds(textureIds), pipelineId(pipelineId)
+    {
+    }
+
     [[nodiscard]] const TextureIds& getTextures() const { return textureIds; }
+
+    [[nodiscard]] uint32_t getPipelineId() const { return pipelineId; }
 };
 }// namespace dragonfire

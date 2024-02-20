@@ -6,7 +6,9 @@
 #include "core/config.h"
 #include "core/crash.h"
 #include <core/utility/math_utils.h>
+#include <ranges>
 #include <spdlog/spdlog.h>
+#include <vulkan/vulkan_hash.hpp>
 #include <vulkan/vulkan_to_string.hpp>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -97,19 +99,24 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
 {
     if (models.empty())
         return;
-    uint32_t drawCount = 0;
+    uint32_t drawCount = 0, pipelineCount = 0;
     const Frame& frame = getCurrentFrame();
     DrawData* drawData = static_cast<DrawData*>(frame.drawData.getInfo().pMappedData);
-    const Material* lastMaterial = nullptr;
     for (auto& [material, draws] : models) {
-        if (material != lastMaterial) {
-            lastMaterial = material;
-            // TODO bind material
-        }
         for (auto& draw : draws) {
             if (drawCount >= maxDrawCount) {
                 logger->error("Max draw count exceeded, some models may not be drawn");
                 break;
+            }
+            const Pipeline& pipeline = pipelines[material->getPipelineId()];
+            if (pipelineMap.contains(pipeline))
+                pipelineMap[pipeline].drawCount++;
+            else {
+                pipelineMap[pipeline] = {
+                    .index = pipelineCount++,
+                    .drawCount = 1,
+                    .layout = pipeline.getLayout(),
+                };
             }
             DrawData& data = drawData[drawCount++];
             data.transform = draw.transform;
@@ -121,7 +128,6 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
             data.vertexCount = mesh->vertexCount;
             data.indexCount = mesh->indexCount;
             data.textureIndices = material->getTextures();
-            // TODO pipelines
         }
     }
 }
@@ -212,13 +218,43 @@ vulkan::VulkanRenderer::Frame::Frame(
     // TODO descriptor sets
 }
 
-void vulkan::VulkanRenderer::computePrePass(uint32_t drawCount, bool cull)
+void vulkan::VulkanRenderer::computePrePass(const uint32_t drawCount, const bool cull)
 {
-    Frame& frame = getCurrentFrame();
+    const Frame& frame = getCurrentFrame();
     const vk::CommandBuffer cmd = frame.cmd;
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, cullComputeLayout, 0, frame.computeSet, {});
     cullPipeline.bind(cmd);
     uint32_t baseIndex = 0;
+    for (const auto& info : std::ranges::views::values(pipelineMap)) {
+        if (info.drawCount == 0)
+            continue;
+        const uint32_t pushConstants[] = {baseIndex, info.index, drawCount, cull ? 1u : 0};
+        cmd.pushConstants(
+            cullComputeLayout,
+            vk::ShaderStageFlagBits::eCompute,
+            0,
+            sizeof(uint32_t) * 4,
+            pushConstants
+        );
+        cmd.dispatch(std::max(drawCount / 256u, 1u), 1, 1);
+        baseIndex += info.drawCount;
+    }
+    vk::BufferMemoryBarrier commands{}, count{};
+    commands.buffer = frame.commandBuffer;
+    commands.size = frame.commandBuffer.getInfo().size;
+    count.buffer = frame.countBuffer;
+    count.size = frame.countBuffer.getInfo().size;
+    commands.offset = count.offset = 0;
+    commands.srcAccessMask = count.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+    commands.dstAccessMask = count.dstAccessMask = vk::AccessFlagBits::eIndirectCommandRead;
+    cmd.pipelineBarrier(
+        vk::PipelineStageFlagBits::eComputeShader,
+        vk::PipelineStageFlagBits::eDrawIndirect,
+        {},
+        {},
+        {commands, count},
+        {}
+    );
 }
 
 void vulkan::VulkanRenderer::waitForLastFrame()
