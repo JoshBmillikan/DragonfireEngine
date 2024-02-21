@@ -195,4 +195,10 @@ Mesh* MeshRegistry::getMesh(const std::string_view id)
     return &iter->second;
 }
 
+void MeshRegistry::bindBuffers(const vk::CommandBuffer cmd)
+{
+    cmd.bindVertexBuffers(0, {vertexBuffer}, {0});
+    cmd.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+}
+
 }// namespace dragonfire::vulkan

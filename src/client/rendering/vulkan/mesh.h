@@ -36,6 +36,7 @@ public:
     );
     void freeMesh(const Mesh* mesh);
     Mesh* getMesh(std::string_view id);
+    void bindBuffers(vk::CommandBuffer cmd);
 
 private:
     std::shared_mutex mutex;
