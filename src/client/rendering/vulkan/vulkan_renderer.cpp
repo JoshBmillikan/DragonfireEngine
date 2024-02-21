@@ -130,6 +130,7 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
             data.textureIndices = material->getTextures();
         }
     }
+    computePrePass(drawCount, true);
 }
 
 void vulkan::VulkanRenderer::endFrame()
@@ -141,6 +142,7 @@ void vulkan::VulkanRenderer::endFrame()
         presentData.frame = &frame;
     }
     presentData.condVar.notify_one();
+    pipelineMap.clear();
     BaseRenderer::endFrame();
 }
 
