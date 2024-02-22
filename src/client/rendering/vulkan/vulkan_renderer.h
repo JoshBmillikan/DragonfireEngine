@@ -82,7 +82,7 @@ private:
     ankerl::unordered_dense::map<vk::Pipeline, PipelineDrawInfo> pipelineMap;
 
     void computePrePass(uint32_t drawCount, bool cull);
-    void mainPass(uint32_t drawCount);
+    void mainPass();
     void beginRendering();
     void waitForLastFrame();
     void writeGlobalUBO(const Camera& camera) const;

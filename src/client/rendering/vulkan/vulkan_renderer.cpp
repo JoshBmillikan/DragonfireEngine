@@ -68,8 +68,6 @@ void vulkan::VulkanRenderer::beginFrame(const Camera& camera)
     vk::CommandBufferBeginInfo beginInfo{};
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
     frame.cmd.begin(beginInfo);
-
-
 }
 
 void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& models)
@@ -109,7 +107,7 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
     }
     computePrePass(drawCount, true);
     beginRendering();
-    mainPass(drawCount);
+    mainPass();
     frame.cmd.endRendering();
 }
 
@@ -240,7 +238,7 @@ void vulkan::VulkanRenderer::computePrePass(const uint32_t drawCount, const bool
     );
 }
 
-void vulkan::VulkanRenderer::mainPass(uint32_t drawCount)
+void vulkan::VulkanRenderer::mainPass()
 {
     const Frame& frame = getCurrentFrame();
     const vk::CommandBuffer cmd = frame.cmd;
@@ -261,19 +259,19 @@ void vulkan::VulkanRenderer::mainPass(uint32_t drawCount)
     for (auto& [pipeline, info] : pipelineMap) {
         cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         cmd.bindDescriptorSets(
-             vk::PipelineBindPoint::eGraphics,
-             info.layout,
-             0,
-             {frame.globalDescriptorSet, frame.frameSet},
-             {}
-     );
+            vk::PipelineBindPoint::eGraphics,
+            info.layout,
+            0,
+            {frame.globalDescriptorSet, frame.frameSet},
+            {}
+        );
         cmd.drawIndexedIndirectCount(
-                frame.commandBuffer,
-                drawOffset,
-                frame.countBuffer,
-                info.index * sizeof(uint32_t),
-                maxDrawCount,
-                sizeof(vk::DrawIndexedIndirectCommand)
+            frame.commandBuffer,
+            drawOffset,
+            frame.countBuffer,
+            info.index * sizeof(uint32_t),
+            maxDrawCount,
+            sizeof(vk::DrawIndexedIndirectCommand)
         );
         drawOffset += info.drawCount * sizeof(vk::DrawIndexedIndirectCommand);
     }
