@@ -108,6 +108,9 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
         }
     }
     computePrePass(drawCount, true);
+    beginRendering();
+    mainPass(drawCount);
+    frame.cmd.endRendering();
 }
 
 void vulkan::VulkanRenderer::endFrame()
@@ -239,7 +242,6 @@ void vulkan::VulkanRenderer::computePrePass(const uint32_t drawCount, const bool
 
 void vulkan::VulkanRenderer::mainPass(uint32_t drawCount)
 {
-    beginRendering();
     const Frame& frame = getCurrentFrame();
     const vk::CommandBuffer cmd = frame.cmd;
     vk::Viewport viewport{};
