@@ -34,6 +34,8 @@ private:
     std::vector<uint8_t> data;
     vk::Device device;
 
+    vk::Fence loadPrimitive(const fastgltf::Primitive& primitive, const fastgltf::Mesh& mesh, Model model, void* ptr, uint32_t primitiveId
+    ) const;
     void loadAsset(const char* path);
     [[nodiscard]] vk::DeviceSize computeBufferSize() const;
     void* getStagingPtr(vk::DeviceSize size);
