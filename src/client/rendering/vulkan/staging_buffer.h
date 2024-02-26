@@ -20,6 +20,11 @@ public:
 
     void flushStagingBuffer() const { stagingBuffer.flush(); };
 
+    StagingBuffer(const StagingBuffer& other) = delete;
+    StagingBuffer(StagingBuffer&& other) noexcept;
+    StagingBuffer& operator=(const StagingBuffer& other) = delete;
+    StagingBuffer& operator=(StagingBuffer&& other) noexcept;
+
 protected:
     void* getStagingPtr(vk::DeviceSize size);
 };

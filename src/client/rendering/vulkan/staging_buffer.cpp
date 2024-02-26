@@ -27,6 +27,22 @@ StagingBuffer::StagingBuffer(GpuAllocator& allocator, const vk::DeviceSize initi
     }
 }
 
+StagingBuffer::StagingBuffer(StagingBuffer&& other) noexcept
+    : stagingBuffer(std::move(other.stagingBuffer)), allocator(other.allocator),
+      memoryPropertyFlags(other.memoryPropertyFlags)
+{
+}
+
+StagingBuffer& StagingBuffer::operator=(StagingBuffer&& other) noexcept
+{
+    if (this == &other)
+        return *this;
+    stagingBuffer = std::move(other.stagingBuffer);
+    allocator = other.allocator;
+    memoryPropertyFlags = other.memoryPropertyFlags;
+    return *this;
+}
+
 void* StagingBuffer::getStagingPtr(const vk::DeviceSize size)
 {
     if (stagingBuffer.getInfo().size < size) {
@@ -45,4 +61,5 @@ void* StagingBuffer::getStagingPtr(const vk::DeviceSize size)
     }
     return stagingBuffer.getInfo().pMappedData;
 }
+
 }// namespace dragonfire::vulkan
