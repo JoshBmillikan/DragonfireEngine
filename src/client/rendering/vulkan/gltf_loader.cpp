@@ -11,14 +11,12 @@
 #include "core/utility/utility.h"
 #include "pipeline.h"
 #include "vulkan_material.h"
-
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
 #include <glm/glm.hpp>
 #include <meshoptimizer.h>
 #include <physfs.h>
 #include <spdlog/spdlog.h>
-#include <stb_image.h>
 
 namespace dragonfire::vulkan {
 
