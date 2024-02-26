@@ -8,12 +8,13 @@
 #include "core/utility/small_vector.h"
 #include "mesh.h"
 #include "pipeline.h"
+#include "staging_buffer.h"
 #include "texture.h"
 #include <fastgltf/parser.hpp>
 
 namespace dragonfire::vulkan {
 
-class VulkanGltfLoader final : public Model::Loader {
+class VulkanGltfLoader final : public Model::Loader, public StagingBuffer {
 public:
     VulkanGltfLoader(
         const Context& ctx,
@@ -30,11 +31,9 @@ public:
 private:
     fastgltf::Parser parser;
     fastgltf::Asset asset;
-    Buffer stagingBuffer;
     MeshRegistry& meshRegistry;
     TextureRegistry& textureRegistry;
     PipelineFactory* pipelineFactory;
-    GpuAllocator& allocator;
     std::vector<uint8_t> data;
     vk::SampleCountFlagBits sampleCount;
     vk::Device device;
@@ -48,7 +47,6 @@ private:
     std::pair<Material*, SmallVector<vk::Fence>> loadMaterial(const fastgltf::Material& material, void*& ptr);
     void loadAsset(const char* path);
     [[nodiscard]] vk::DeviceSize computeBufferSize() const;
-    void* getStagingPtr(vk::DeviceSize size);
 };
 
 }// namespace dragonfire::vulkan

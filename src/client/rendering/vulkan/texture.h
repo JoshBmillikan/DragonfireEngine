@@ -5,6 +5,7 @@
 #pragma once
 #include "allocation.h"
 #include "core/utility/small_vector.h"
+#include "staging_buffer.h"
 #include <client/rendering/material.h>
 #include <core/utility/string_hash.h>
 #include <memory>
@@ -13,9 +14,20 @@
 
 namespace dragonfire::vulkan {
 
-class Texture final : public Image {
+class Texture {
     vk::Sampler sampler;
     uint32_t id = 0;
+    Image image;
+
+public:
+    Texture(const vk::Sampler sampler, const uint32_t id, Image&& image)
+        : sampler(sampler), id(id), image(std::move(image))
+    {
+    }
+
+    [[nodiscard]] vk::Sampler getSampler() const { return sampler; }
+
+    [[nodiscard]] uint32_t getId() const { return id; }
 };
 
 struct ImageData {
@@ -28,16 +40,18 @@ struct ImageData {
     void setData(stbi_uc* ptr) { data = DataType(ptr, &stbi_image_free); }
 };
 
-class TextureRegistry {
+class TextureRegistry final : public StagingBuffer {
 public:
-    Texture* getCreateTexture(std::string_view name, ImageData&& image);
-    SmallVector<Texture*> getCreateTextures(std::span<std::string_view> names, std::span<ImageData> images);
+    TextureRegistry(GpuAllocator& allocator);
 
+    Texture* getCreateTexture(std::string_view name, ImageData&& image);
+    SmallVector<Texture*> getCreateTextures(std::span<std::tuple<std::string_view, ImageData>> data);
+
+    Texture* getTexture(std::string_view name);
 private:
     std::shared_mutex mutex;
     StringMap<Texture> textures;
     uint32_t textureCount = 0;
-    Buffer stagingBuffer;
 };
 
 }// namespace dragonfire::vulkan

@@ -36,20 +36,9 @@ VulkanGltfLoader::VulkanGltfLoader(
     GpuAllocator& allocator,
     PipelineFactory* pipelineFactory
 )
-    : meshRegistry(meshRegistry), textureRegistry(textureRegistry), pipelineFactory(pipelineFactory),
-      allocator(allocator), sampleCount(sampleCount), device(ctx.device)
+    : StagingBuffer(allocator, 4096, false), meshRegistry(meshRegistry), textureRegistry(textureRegistry),
+      pipelineFactory(pipelineFactory), sampleCount(sampleCount), device(ctx.device)
 {
-    vk::BufferCreateInfo bufInfo{};
-    bufInfo.size = 4096;
-    bufInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-    bufInfo.sharingMode = vk::SharingMode::eExclusive;
-    VmaAllocationCreateInfo allocInfo{};
-    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    allocInfo.priority = 1.0f;
-    allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-    stagingBuffer = allocator.allocate(bufInfo, allocInfo);
 }
 
 VulkanGltfLoader::~VulkanGltfLoader() = default;
@@ -186,20 +175,20 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
     }
     if (optimizeMeshes)
         optimizeMesh(vertices, vertexCount, indices, indexCount, ptr);
-    stagingBuffer.flush();
+    flushStagingBuffer();
 
     const size_t vertexOffset = reinterpret_cast<uintptr_t>(vertices)
-                                - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
+                                - reinterpret_cast<uintptr_t>(getStagingBuffer().getInfo().pMappedData);
     const size_t indexOffset = reinterpret_cast<uintptr_t>(indices)
-                               - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
+                               - reinterpret_cast<uintptr_t>(getStagingBuffer().getInfo().pMappedData);
 
     const auto name = primitiveId > 0 ? fmt::format("{}_{}", mesh.name, primitiveId) : std::string(mesh.name);
     const glm::vec4 bounds = computeBounds(vertices, vertexCount);
     const size_t baseOffset
-        = reinterpret_cast<uintptr_t>(ptr) - reinterpret_cast<uintptr_t>(stagingBuffer.getInfo().pMappedData);
+        = reinterpret_cast<uintptr_t>(ptr) - reinterpret_cast<uintptr_t>(getStagingBuffer().getInfo().pMappedData);
     auto [m, fence] = meshRegistry.uploadMesh(
         name,
-        stagingBuffer,
+        getStagingBuffer(),
         vertexCount,
         indexCount,
         vertexOffset + baseOffset,
@@ -330,25 +319,6 @@ vk::DeviceSize VulkanGltfLoader::computeBufferSize() const
     for (const auto& b : asset.buffers)
         size += b.byteLength;
     return padToAlignment(size, 16);
-}
-
-void* VulkanGltfLoader::getStagingPtr(const vk::DeviceSize size)
-{
-    if (stagingBuffer.getInfo().size < size) {
-        vk::BufferCreateInfo createInfo{};
-        createInfo.size = size;
-        createInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-        createInfo.sharingMode = vk::SharingMode::eExclusive;
-        VmaAllocationCreateInfo allocInfo{};
-        allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-        allocInfo.priority = 1.0f;
-        allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-        allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-        allocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-
-        stagingBuffer = allocator.allocate(createInfo, allocInfo);
-    }
-    return stagingBuffer.getInfo().pMappedData;
 }
 
 }// namespace dragonfire::vulkan
