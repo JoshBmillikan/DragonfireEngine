@@ -48,6 +48,7 @@ public:
     SmallVector<Texture*> getCreateTextures(std::span<std::tuple<std::string_view, ImageData>> data);
 
     Texture* getTexture(std::string_view name);
+
 private:
     std::shared_mutex mutex;
     StringMap<Texture> textures;

@@ -1,6 +1,6 @@
 //
 // Created by josh on 1/15/24.
-//nullptr
+//
 
 #pragma once
 #include "allocation.h"
