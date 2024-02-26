@@ -36,8 +36,8 @@ VulkanGltfLoader::VulkanGltfLoader(
     GpuAllocator& allocator,
     PipelineFactory* pipelineFactory
 )
-    : sampleCount(sampleCount), meshRegistry(meshRegistry), textureRegistry(textureRegistry),
-      allocator(allocator), device(ctx.device), pipelineFactory(pipelineFactory)
+    : meshRegistry(meshRegistry), textureRegistry(textureRegistry), pipelineFactory(pipelineFactory),
+      allocator(allocator), sampleCount(sampleCount), device(ctx.device)
 {
     vk::BufferCreateInfo bufInfo{};
     bufInfo.size = 4096;
@@ -214,7 +214,6 @@ template<class... Ts>
 struct Overloaded : Ts... {
     using Ts::operator()...;
 };
-
 
 static ImageData loadImageData(const fastgltf::DataSource& dataSource)
 {
