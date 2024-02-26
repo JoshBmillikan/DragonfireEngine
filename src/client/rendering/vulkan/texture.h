@@ -19,13 +19,13 @@ class Texture final : public Image {
 };
 
 struct ImageData {
-    using DataType = std::unique_ptr<stbi_uc, decltype([](stbi_uc* ptr) { stbi_image_free(ptr); })>;
-    DataType data;
+    using DataType = std::unique_ptr<stbi_uc, decltype(&stbi_image_free)>;
+    DataType data = {nullptr, &stbi_image_free};
     size_t len = 0;
     int x = 0, y = 0, channels = 0;
     ImageData() = default;
 
-    void setData(stbi_uc* ptr) { data = DataType(ptr); }
+    void setData(stbi_uc* ptr) { data = DataType(ptr, &stbi_image_free); }
 };
 
 class TextureRegistry {
