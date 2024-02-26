@@ -3,8 +3,10 @@
 //
 
 #include "vulkan_renderer.h"
+
 #include "core/config.h"
 #include "core/crash.h"
+#include "vulkan_material.h"
 #include <core/utility/math_utils.h>
 #include <ranges>
 #include <spdlog/spdlog.h>
@@ -78,12 +80,14 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
     const Frame& frame = getCurrentFrame();
     DrawData* drawData = static_cast<DrawData*>(frame.drawData.getInfo().pMappedData);
     for (auto& [material, draws] : models) {
+        const auto mat
+            = static_cast<const VulkanMaterial*>(material);// NOLINT(*-pro-type-static-cast-downcast)
         for (auto& draw : draws) {
             if (drawCount >= maxDrawCount) {
                 logger->error("Max draw count exceeded, some models may not be drawn");
                 break;
             }
-            const Pipeline& pipeline = pipelines[material->getPipelineId()];
+            const Pipeline& pipeline = mat->pipeline;
             if (pipelineMap.contains(pipeline))
                 pipelineMap[pipeline].drawCount++;
             else {
@@ -102,7 +106,7 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
             data.indexOffset = mesh->indexInfo.offset;
             data.vertexCount = mesh->vertexCount;
             data.indexCount = mesh->indexCount;
-            data.textureIndices = material->getTextures();
+            data.textureIndices = mat->getTextures();
         }
     }
     computePrePass(drawCount, true);
@@ -140,7 +144,6 @@ vulkan::VulkanRenderer::~VulkanRenderer()
         frame.countBuffer.destroy();
         frame.textureIndexBuffer.destroy();
     }
-    pipelines.clear();
     pipelineFactory.reset();
     descriptorLayoutManager.destroy();
     meshRegistry.reset();

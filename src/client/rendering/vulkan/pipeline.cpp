@@ -228,7 +228,8 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
         if (result != vk::Result::eSuccess)
             throw std::runtime_error("Failed to create compute pipeline");
         std::unique_lock lock(mutex);
-        return pipelines[info] = Pipeline(pipeline, vk::PipelineBindPoint::eCompute, createInfo.layout);
+        return pipelines[info]
+               = Pipeline(pipeline, vk::PipelineBindPoint::eCompute, createInfo.layout, pipelineCount++);
     }
 
     vk::PipelineShaderStageCreateInfo stages[MAX_SHADER_COUNT];
@@ -295,7 +296,8 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
     if (result != vk::Result::eSuccess)
         throw std::runtime_error("Failed to create graphics pipeline");
     std::unique_lock lock(mutex);
-    return pipelines[info] = Pipeline(pipeline, vk::PipelineBindPoint::eGraphics, createInfo.layout);
+    return pipelines[info]
+           = Pipeline(pipeline, vk::PipelineBindPoint::eGraphics, createInfo.layout, pipelineCount++);
 }
 
 void PipelineFactory::savePipelineCache() const

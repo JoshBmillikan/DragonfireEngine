@@ -55,7 +55,6 @@ private:
     vk::DeviceSize uboOffset = 0;
     Pipeline cullPipeline;
     vk::PipelineLayout cullComputeLayout;
-    std::vector<Pipeline> pipelines;
 
     struct {
         std::mutex mutex;

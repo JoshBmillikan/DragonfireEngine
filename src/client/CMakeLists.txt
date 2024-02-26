@@ -4,6 +4,7 @@ find_package(VulkanHeaders CONFIG)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(unofficial-spirv-reflect CONFIG REQUIRED)
 find_package(meshoptimizer CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 set(VULKAN_SRC
         rendering/vulkan/vulkan_renderer.cpp
@@ -24,7 +25,8 @@ set(VULKAN_SRC
         rendering/vulkan/texture.cpp
         rendering/vulkan/texture.h
         rendering/vulkan/gltf_loader.cpp
-        rendering/vulkan/gltf_loader.h)
+        rendering/vulkan/gltf_loader.h
+        rendering/vulkan/vulkan_material.h)
 add_library(dragonfire-client STATIC
         app.cpp
         app.h
@@ -43,6 +45,7 @@ target_link_libraries(dragonfire-client PUBLIC dragonfire-core fastgltf::fastglt
 target_link_libraries(dragonfire-client PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator meshoptimizer::meshoptimizer unofficial::spirv-reflect::spirv-reflect)
 add_dependencies(dragonfire-client shader-target)
 target_compile_definitions(dragonfire-client PRIVATE "SHADER_OUTPUT_PATH=\"${SHADERS_OUT}\"")
+target_include_directories(dragonfire-client PRIVATE ${Stb_INCLUDE_DIR})
 
 add_executable(${APP_NAME} main.cpp)
 target_link_libraries(${APP_NAME} PRIVATE dragonfire-client SDL2::SDL2main)

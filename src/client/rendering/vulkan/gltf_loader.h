@@ -7,6 +7,7 @@
 #include "client/rendering/model.h"
 #include "core/utility/small_vector.h"
 #include "mesh.h"
+#include "pipeline.h"
 #include "texture.h"
 #include <fastgltf/parser.hpp>
 
@@ -16,9 +17,11 @@ class VulkanGltfLoader final : public Model::Loader {
 public:
     VulkanGltfLoader(
         const Context& ctx,
+        vk::SampleCountFlagBits sampleCount,
         MeshRegistry& meshRegistry,
         TextureRegistry& textureRegistry,
-        GpuAllocator& allocator
+        GpuAllocator& allocator,
+        PipelineFactory* pipelineFactory
     );
     ~VulkanGltfLoader() override;
 
@@ -30,12 +33,19 @@ private:
     Buffer stagingBuffer;
     MeshRegistry& meshRegistry;
     TextureRegistry& textureRegistry;
+    PipelineFactory* pipelineFactory;
     GpuAllocator& allocator;
     std::vector<uint8_t> data;
+    vk::SampleCountFlagBits sampleCount;
     vk::Device device;
 
-    vk::Fence loadPrimitive(const fastgltf::Primitive& primitive, const fastgltf::Mesh& mesh, Model model, void* ptr, uint32_t primitiveId
+    std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> loadPrimitive(
+        const fastgltf::Primitive& primitive,
+        const fastgltf::Mesh& mesh,
+        void*& ptr,
+        uint32_t primitiveId
     ) const;
+    std::pair<Material*, SmallVector<vk::Fence>> loadMaterial(const fastgltf::Material& material, void*& ptr);
     void loadAsset(const char* path);
     [[nodiscard]] vk::DeviceSize computeBufferSize() const;
     void* getStagingPtr(vk::DeviceSize size);

@@ -3,13 +3,13 @@
 //
 
 #pragma once
+#include "descriptor_set.h"
 #include "vulkan_headers.h"
 #include <core/utility/string_hash.h>
 #include <optional>
 #include <shared_mutex>
 #include <spirv_reflect.h>
 #include <unordered_map>
-#include "descriptor_set.h"
 
 namespace dragonfire::vulkan {
 
@@ -17,6 +17,7 @@ class Pipeline {
     vk::Pipeline pipeline;
     vk::PipelineBindPoint bindPoint = vk::PipelineBindPoint::eGraphics;
     vk::PipelineLayout layout;
+    uint32_t id = 0;
 
 public:
     Pipeline() = default;
@@ -24,11 +25,14 @@ public:
     Pipeline(
         const vk::Pipeline pipeline,
         const vk::PipelineBindPoint bindPoint,
-        const vk::PipelineLayout layout
+        const vk::PipelineLayout layout,
+        const uint32_t id
     )
-        : pipeline(pipeline), bindPoint(bindPoint), layout(layout)
+        : pipeline(pipeline), bindPoint(bindPoint), layout(layout), id(id)
     {
     }
+
+    [[nodiscard]] uint32_t getId() const { return id; }
 
     void bind(const vk::CommandBuffer cmd) const { cmd.bindPipeline(bindPoint, pipeline); }
 
@@ -82,6 +86,7 @@ private:
     StringMap<std::pair<vk::ShaderModule, spv_reflect::ShaderModule>> shaders;
     DescriptorLayoutManager* descriptorLayoutManager = nullptr;
     vk::Device device;
+    uint32_t pipelineCount = 0;
 
     Pipeline createPipeline(const PipelineInfo& info);
     void loadShaders(const char* dir = SHADER_DIR);
