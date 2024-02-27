@@ -37,6 +37,8 @@ public:
         vk::DeviceSize dstOffset = 0,
         vk::DeviceSize srcOffset = 0
     ) const;
+
+    void clearStagingBuffer();
 };
 
 }// namespace dragonfire::vulkan

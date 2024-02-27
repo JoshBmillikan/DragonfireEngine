@@ -53,6 +53,8 @@ void Buffer::destroy() noexcept
     if (allocator)
         vmaDestroyBuffer(allocator, buffer, allocation);
     allocator = nullptr;
+    info.pMappedData = nullptr;
+    info.offset = info.size = 0;
 }
 
 Buffer::Buffer(Buffer&& other) noexcept : GpuAllocation(std::move(other)), buffer(other.buffer) {}

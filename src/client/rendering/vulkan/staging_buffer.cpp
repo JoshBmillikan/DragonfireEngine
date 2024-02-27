@@ -98,4 +98,9 @@ vk::Fence StagingBuffer::copy(
     return fence;
 }
 
+void StagingBuffer::clearStagingBuffer()
+{
+    stagingBuffer.destroy();
+}
+
 }// namespace dragonfire::vulkan
