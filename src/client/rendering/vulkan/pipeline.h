@@ -53,7 +53,7 @@ struct PipelineInfo {
     vk::PrimitiveTopology topology;
     vk::PipelineRasterizationStateCreateInfo rasterState;
     vk::PipelineDepthStencilStateCreateInfo depthState;
-    std::string_view vertexCompShader, fragmentShader, geometryShader, tessEvalShader, tessCtrlShader;
+    std::string vertexCompShader, fragmentShader, geometryShader, tessEvalShader, tessCtrlShader;
 
     static size_t hash(const PipelineInfo& info) noexcept;
     bool operator==(const PipelineInfo& other) const noexcept;

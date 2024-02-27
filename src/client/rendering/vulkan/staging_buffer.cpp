@@ -62,4 +62,9 @@ void* StagingBuffer::getStagingPtr(const vk::DeviceSize size)
     return stagingBuffer.getInfo().pMappedData;
 }
 
+vk::raii::Fence StagingBuffer::copy(vk::Buffer dst, vk::CommandBuffer cmd, vk::Queue queue, vk::Device device)
+{
+
+}
+
 }// namespace dragonfire::vulkan

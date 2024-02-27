@@ -11,11 +11,13 @@
 #include "core/utility/utility.h"
 #include "pipeline.h"
 #include "vulkan_material.h"
+// ReSharper disable once CppUnusedIncludeDirective
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
 #include <glm/glm.hpp>
 #include <meshoptimizer.h>
 #include <physfs.h>
+#include <re2/re2.h>
 #include <spdlog/spdlog.h>
 
 namespace dragonfire::vulkan {
@@ -184,8 +186,8 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
 
     const auto name = primitiveId > 0 ? fmt::format("{}_{}", mesh.name, primitiveId) : std::string(mesh.name);
     const glm::vec4 bounds = computeBounds(vertices, vertexCount);
-    const size_t baseOffset
-        = reinterpret_cast<uintptr_t>(ptr) - reinterpret_cast<uintptr_t>(getStagingBuffer().getInfo().pMappedData);
+    const size_t baseOffset = reinterpret_cast<uintptr_t>(ptr)
+                              - reinterpret_cast<uintptr_t>(getStagingBuffer().getInfo().pMappedData);
     auto [m, fence] = meshRegistry.uploadMesh(
         name,
         getStagingBuffer(),
@@ -256,6 +258,11 @@ static ImageData loadImageData(const fastgltf::DataSource& dataSource)
     );
 }
 
+static RE2 VERTEX_REGEX("vs-([a-zA-Z_0-9]+)", RE2::Quiet);
+static RE2 FRAG_REGEX("fs-([a-zA-Z_0-9]+)", RE2::Quiet);
+static RE2 GEOM_REGEX("geom-([a-zA-Z_0-9]+)", RE2::Quiet);
+static RE2 TESS_REGEX("teseval-([a-zA-Z_0-9]+).*tesctrl=(a-zA-Z_0-9]+)", RE2::Quiet);
+
 std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(
     const fastgltf::Material& material,
     void*& ptr
@@ -276,15 +283,34 @@ std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(
     pipelineInfo.depthState.minDepthBounds = 0.0f;
     pipelineInfo.depthState.maxDepthBounds = 1.0f;
 
-    // TODO shaders
+    RE2::FullMatch(material.name, VERTEX_REGEX, &pipelineInfo.vertexCompShader);
+    RE2::FullMatch(material.name, FRAG_REGEX, &pipelineInfo.fragmentShader);
+    RE2::FullMatch(material.name, GEOM_REGEX, &pipelineInfo.geometryShader);
+    RE2::FullMatch(material.name, TESS_REGEX, &pipelineInfo.tessEvalShader, &pipelineInfo.tessCtrlShader);
+
+    if (!pipelineInfo.vertexCompShader.empty())
+        pipelineInfo.vertexCompShader += ".vert";
+    else
+        pipelineInfo.vertexCompShader = "default.vert";
+    if (!pipelineInfo.fragmentShader.empty())
+        pipelineInfo.fragmentShader += ".frag";
+    else
+        pipelineInfo.fragmentShader = "default.frag";
+    if (!pipelineInfo.geometryShader.empty())
+        pipelineInfo.geometryShader += ".geom";
+    if (!pipelineInfo.tessEvalShader.empty())
+        pipelineInfo.tessEvalShader += ".tese";
+    if (!pipelineInfo.tessCtrlShader.empty())
+        pipelineInfo.tessCtrlShader += ".tesc";
 
     const Pipeline pipeline = pipelineFactory->getOrCreate(pipelineInfo);
+
     if (material.pbrData.baseColorTexture.has_value()) {
         auto& texture = asset.textures[material.pbrData.baseColorTexture.value().textureIndex];
         auto& image = asset.images[texture.imageIndex.value()];
         auto name = texture.name.empty() ? image.name : texture.name;
         ImageData imageData = loadImageData(image.data);
-        // todo
+        // todo textures
     }
     const TextureIds textureIds{
 

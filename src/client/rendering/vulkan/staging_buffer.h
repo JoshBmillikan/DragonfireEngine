@@ -4,6 +4,7 @@
 
 #pragma once
 #include "allocation.h"
+#include <vulkan/vulkan_raii.hpp>
 
 namespace dragonfire::vulkan {
 
@@ -25,8 +26,9 @@ public:
     StagingBuffer& operator=(const StagingBuffer& other) = delete;
     StagingBuffer& operator=(StagingBuffer&& other) noexcept;
 
-protected:
     void* getStagingPtr(vk::DeviceSize size);
+
+    vk::raii::Fence copy(vk::Buffer dst, vk::CommandBuffer cmd, vk::Queue queue, vk::Device device);
 };
 
 }// namespace dragonfire::vulkan
