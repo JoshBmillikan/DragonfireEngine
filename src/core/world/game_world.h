@@ -14,4 +14,4 @@ class GameWorld {
     JPH::PhysicsSystem physicsSystem;
 };
 
-} // dragonfire
+}// namespace dragonfire

@@ -28,7 +28,15 @@ public:
 
     void* getStagingPtr(vk::DeviceSize size);
 
-    vk::raii::Fence copy(vk::Buffer dst, vk::CommandBuffer cmd, vk::Queue queue, vk::Device device);
+    [[nodiscard]] vk::Fence copy(
+        vk::Buffer dst,
+        vk::CommandBuffer cmd,
+        vk::Queue queue,
+        vk::Device device,
+        vk::DeviceSize size,
+        vk::DeviceSize dstOffset = 0,
+        vk::DeviceSize srcOffset = 0
+    ) const;
 };
 
 }// namespace dragonfire::vulkan

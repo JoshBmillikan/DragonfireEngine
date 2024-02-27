@@ -3,9 +3,9 @@
 //
 
 #pragma once
+#include <client/rendering/base_renderer.h>
 #include <core/engine.h>
 #include <memory>
-#include <client/rendering/base_renderer.h>
 
 namespace dragonfire {
 
@@ -22,4 +22,4 @@ private:
     std::unique_ptr<BaseRenderer> renderer;
 };
 
-} // raven
+}// namespace dragonfire

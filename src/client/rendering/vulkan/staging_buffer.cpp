@@ -62,9 +62,40 @@ void* StagingBuffer::getStagingPtr(const vk::DeviceSize size)
     return stagingBuffer.getInfo().pMappedData;
 }
 
-vk::raii::Fence StagingBuffer::copy(vk::Buffer dst, vk::CommandBuffer cmd, vk::Queue queue, vk::Device device)
+vk::Fence StagingBuffer::copy(
+    const vk::Buffer dst,
+    const vk::CommandBuffer cmd,
+    const vk::Queue queue,
+    const vk::Device device,
+    const vk::DeviceSize size,
+    const vk::DeviceSize dstOffset,
+    const vk::DeviceSize srcOffset
+) const
 {
+    vk::CommandBufferBeginInfo beginInfo{};
+    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+    cmd.begin(beginInfo);
 
+    vk::BufferCopy cpy;
+    cpy.size = size, cpy.dstOffset = dstOffset;
+    cpy.srcOffset = srcOffset;
+
+    cmd.copyBuffer(stagingBuffer, dst, cpy);
+
+    vk::SubmitInfo submitInfo{};
+    submitInfo.pCommandBuffers = &cmd;
+    submitInfo.commandBufferCount = 1;
+    cmd.end();
+
+    const vk::Fence fence = device.createFence(vk::FenceCreateInfo());
+    try {
+        queue.submit(submitInfo, fence);
+    }
+    catch (...) {
+        device.destroy(fence);
+        throw;
+    }
+    return fence;
 }
 
 }// namespace dragonfire::vulkan
