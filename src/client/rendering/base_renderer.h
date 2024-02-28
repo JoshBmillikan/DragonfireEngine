@@ -24,6 +24,7 @@ public:
     [[nodiscard]] SDL_Window* getWindow() const { return window; }
 
     virtual ~BaseRenderer() noexcept;
+    virtual std::unique_ptr<Model::Loader> getModelLoader() = 0;
 
     void addDrawable(const Model* model, const Transform& transform);
     void addDrawables(const Model* model, std::span<Transform> transforms);

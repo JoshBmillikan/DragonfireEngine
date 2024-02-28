@@ -20,6 +20,7 @@ class VulkanRenderer final : public BaseRenderer {
 public:
     explicit VulkanRenderer(bool enableValidation);
     ~VulkanRenderer() override;
+    std::unique_ptr<Model::Loader> getModelLoader() override;
 
     static constexpr int FRAMES_IN_FLIGHT = 2;
     const uint32_t maxDrawCount;
@@ -55,6 +56,8 @@ private:
     vk::DeviceSize uboOffset = 0;
     Pipeline cullPipeline;
     vk::PipelineLayout cullComputeLayout;
+    vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1;
+    std::unique_ptr<TextureRegistry> textureRegistry;
 
     struct {
         std::mutex mutex;

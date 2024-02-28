@@ -5,6 +5,7 @@
 #pragma once
 #include "vulkan_headers.h"
 #include <SDL_video.h>
+#include <memory>
 
 namespace dragonfire::vulkan {
 
@@ -20,7 +21,7 @@ struct Context {
         vk::Queue graphics, present, transfer;
     } queues;
 
-    vk::PhysicalDeviceProperties deviceProperties;
+    std::unique_ptr<vk::PhysicalDeviceProperties> deviceProperties;
 
     Context() = default;
     Context(

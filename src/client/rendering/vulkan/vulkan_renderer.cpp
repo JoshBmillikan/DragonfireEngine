@@ -3,9 +3,9 @@
 //
 
 #include "vulkan_renderer.h"
-
 #include "core/config.h"
 #include "core/crash.h"
+#include "gltf_loader.h"
 #include "vulkan_material.h"
 #include <core/utility/math_utils.h>
 #include <ranges>
@@ -55,6 +55,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     meshRegistry = std::make_unique<MeshRegistry>(context, allocator);
     descriptorLayoutManager = DescriptorLayoutManager(context.device);
     pipelineFactory = std::make_unique<PipelineFactory>(context, &descriptorLayoutManager);
+    textureRegistry = std::make_unique<TextureRegistry>(allocator);
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
         frames[i] = Frame(context, allocator, maxDrawCount);
@@ -151,6 +152,18 @@ vulkan::VulkanRenderer::~VulkanRenderer()
     allocator.destroy();
     context.destroy();
     spdlog::get("Rendering")->info("Vulkan shutdown complete");
+}
+
+std::unique_ptr<Model::Loader> vulkan::VulkanRenderer::getModelLoader()
+{
+    return std::make_unique<VulkanGltfLoader>(
+        context,
+        sampleCount,
+        *meshRegistry,
+        *textureRegistry,
+        allocator,
+        pipelineFactory.get()
+    );
 }
 
 vulkan::VulkanRenderer::Frame::Frame(
@@ -402,7 +415,6 @@ void vulkan::VulkanRenderer::present(const std::stop_token& token)
         lock.unlock();
         presentData.condVar.notify_one();
     }
-    context.queues.present.waitIdle();
     logger->trace("Presentation thread destroyed");
 }
 

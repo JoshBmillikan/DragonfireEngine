@@ -510,8 +510,9 @@ Context::Context(
         logger->info("Vulkan validation layers enabled");
     }
     surface = createSurface(window, instance);
+    deviceProperties = std::make_unique_for_overwrite<vk::PhysicalDeviceProperties>();
     physicalDevice
-        = getPhysicalDevice(instance, surface, requiredFeatures, enabledExtensions, &deviceProperties);
+        = getPhysicalDevice(instance, surface, requiredFeatures, enabledExtensions, deviceProperties.get());
     device = createDevice(physicalDevice, enabledExtensions, requiredFeatures, surface, queues);
 
     logger->info("Vulkan context initialized");
