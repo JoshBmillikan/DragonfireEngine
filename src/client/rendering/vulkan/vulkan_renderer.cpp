@@ -118,6 +118,15 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
 
 void vulkan::VulkanRenderer::endFrame()
 {
+    transistionImageLayout(
+        swapchain.currentImage(),
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageLayout::ePresentSrcKHR,
+        vk::AccessFlagBits::eColorAttachmentWrite,
+        vk::AccessFlagBits::eNone,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits::eBottomOfPipe
+    );
     Frame& frame = getCurrentFrame();
     frame.cmd.end();
     {
@@ -295,6 +304,16 @@ void vulkan::VulkanRenderer::mainPass()
 
 void vulkan::VulkanRenderer::beginRendering()
 {
+    transistionImageLayout(
+        swapchain.currentImage(),
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::AccessFlagBits::eNone,
+        vk::AccessFlagBits::eColorAttachmentWrite,
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput
+    );
+
     vk::RenderingAttachmentInfo color{}, depth{};
     color.clearValue = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f};
     color.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
@@ -416,6 +435,37 @@ void vulkan::VulkanRenderer::present(const std::stop_token& token)
         presentData.condVar.notify_one();
     }
     logger->trace("Presentation thread destroyed");
+}
+
+void vulkan::VulkanRenderer::transistionImageLayout(
+    const vk::Image image,
+    const vk::ImageLayout from,
+    const vk::ImageLayout to,
+    const vk::AccessFlags srcStage,
+    const vk::AccessFlags dstStage,
+    const vk::PipelineStageFlags pipelineStart,
+    const vk::PipelineStageFlags pipelineEnd,
+    const vk::ImageAspectFlags imageAspect,
+    const uint32_t baseMipLevel,
+    const uint32_t levelCount,
+    const uint32_t baseArrayLayer,
+    const uint32_t layerCount
+)
+{
+    vk::ImageMemoryBarrier barrier{};
+    barrier.image = image;
+    barrier.srcAccessMask = srcStage;
+    barrier.dstAccessMask = dstStage;
+    barrier.oldLayout = from;
+    barrier.newLayout = to;
+    barrier.subresourceRange.aspectMask = imageAspect;
+    barrier.subresourceRange.baseMipLevel = baseMipLevel;
+    barrier.subresourceRange.levelCount = levelCount;
+    barrier.subresourceRange.baseArrayLayer = baseArrayLayer;
+    barrier.subresourceRange.layerCount = layerCount;
+
+    const vk::CommandBuffer cmd = getCurrentFrame().cmd;
+    cmd.pipelineBarrier(pipelineStart, pipelineEnd, {}, {}, {}, barrier);
 }
 
 }// namespace dragonfire

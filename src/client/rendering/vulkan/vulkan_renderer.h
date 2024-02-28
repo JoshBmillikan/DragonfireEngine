@@ -89,6 +89,20 @@ private:
     void waitForLastFrame();
     void writeGlobalUBO(const Camera& camera) const;
     void present(const std::stop_token& token);
+    void transistionImageLayout(
+        vk::Image image,
+        vk::ImageLayout from,
+        vk::ImageLayout to,
+        vk::AccessFlags srcStage,
+        vk::AccessFlags dstStage,
+        vk::PipelineStageFlags pipelineStart,
+        vk::PipelineStageFlags pipelineEnd,
+        vk::ImageAspectFlags imageAspect = vk::ImageAspectFlagBits::eColor,
+        uint32_t baseMipLevel = 0,
+        uint32_t levelCount = 1,
+        uint32_t baseArrayLayer = 0,
+        uint32_t layerCount = 1
+    );
 
     const Frame& getCurrentFrame() const { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
 
