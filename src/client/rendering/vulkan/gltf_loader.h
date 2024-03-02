@@ -41,10 +41,9 @@ private:
     std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> loadPrimitive(
         const fastgltf::Primitive& primitive,
         const fastgltf::Mesh& mesh,
-        void*& ptr,
         uint32_t primitiveId
-    ) const;
-    std::pair<Material*, SmallVector<vk::Fence>> loadMaterial(const fastgltf::Material& material, void*& ptr);
+    );
+    std::pair<Material*, SmallVector<vk::Fence>> loadMaterial(const fastgltf::Material& material);
     void loadAsset(const char* path);
     [[nodiscard]] vk::DeviceSize computeBufferSize() const;
 };

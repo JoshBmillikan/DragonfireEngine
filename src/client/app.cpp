@@ -30,7 +30,14 @@ App::App(const int argc, char** const argv) : Engine(argc, argv, extraCommands)
     catch (const std::exception& e) {
         spdlog::error("Failed to load config file: {}", e.what());
     }
+    char** ptr = PHYSFS_enumerateFiles("assets/models");
+    for (char** p = ptr; *p; p++)
+        spdlog::warn("PATH: {}", *p);
+    PHYSFS_freeList(ptr);
+
     renderer = std::make_unique<vulkan::VulkanRenderer>(cli["vulkan-validation"].as<bool>());
+    auto loader = renderer->getModelLoader();
+    Model bunny = loader->load("assets/models/bunny.glb");
 }
 
 App::~App()

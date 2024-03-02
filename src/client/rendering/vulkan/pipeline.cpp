@@ -96,6 +96,7 @@ PipelineFactory::PipelineFactory(const Context& ctx, DescriptorLayoutManager* de
     cache = loadCache(CACHE_PATH, ctx.device);
 #ifdef SHADER_OUTPUT_PATH
     File::mount(SHADER_OUTPUT_PATH, SHADER_DIR);
+    spdlog::get("Rendering")->trace("Shader output path: {}", SHADER_OUTPUT_PATH);
 #endif
     loadShaders(SHADER_DIR);
 }
@@ -165,7 +166,7 @@ static uint32_t createStageInfos(
             {},
             vk::ShaderStageFlagBits::eVertex,
             shader.first,
-            shader.second.GetSourceFile()
+            shader.second.GetEntryPointName()
         );
     }
     {
@@ -174,7 +175,7 @@ static uint32_t createStageInfos(
             {},
             vk::ShaderStageFlagBits::eFragment,
             shader.first,
-            shader.second.GetSourceFile()
+            shader.second.GetEntryPointName()
         );
     }
     if (!info.geometryShader.empty()) {
@@ -183,7 +184,7 @@ static uint32_t createStageInfos(
             {},
             vk::ShaderStageFlagBits::eGeometry,
             shader.first,
-            shader.second.GetSourceFile()
+            shader.second.GetEntryPointName()
         );
         count++;
     }
@@ -193,7 +194,7 @@ static uint32_t createStageInfos(
             {},
             vk::ShaderStageFlagBits::eTessellationEvaluation,
             shader.first,
-            shader.second.GetSourceFile()
+            shader.second.GetEntryPointName()
         );
         count++;
     }
@@ -203,7 +204,7 @@ static uint32_t createStageInfos(
             {},
             vk::ShaderStageFlagBits::eTessellationControl,
             shader.first,
-            shader.second.GetSourceFile()
+            shader.second.GetEntryPointName()
         );
         count++;
     }

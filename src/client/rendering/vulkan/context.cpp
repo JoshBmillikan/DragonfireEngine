@@ -496,7 +496,7 @@ static vk::Device createDevice(
 
 Context::Context(
     SDL_Window* window,
-    std::span<const char*> enabledExtensions,
+    const std::span<const char*> enabledExtensions,
     const vk::PhysicalDeviceFeatures2& requiredFeatures,
     const bool enableValidation
 )
@@ -505,7 +505,7 @@ Context::Context(
     instance = createInstance(window, enableValidation);
     const auto logger = spdlog::get("Rendering");
     if (enableValidation) {
-        auto createInfo = getDebugCreateInfo(logger.get());
+        const auto createInfo = getDebugCreateInfo(logger.get());
         debugMessenger = instance.createDebugUtilsMessengerEXT(createInfo);
         logger->info("Vulkan validation layers enabled");
     }

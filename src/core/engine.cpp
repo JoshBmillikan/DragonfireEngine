@@ -12,6 +12,7 @@ using magic_enum::iostream_operators::operator>>;
 #include "file.h"
 #include "utility/frame_allocator.h"
 #include <SDL2/SDL.h>
+#include <filesystem>
 #include <iostream>
 #include <physfs.h>
 #include <spdlog/async.h>
@@ -57,10 +58,12 @@ static void mountDir(const std::string& str)
         return;
     }
     const auto first = str.substr(0, delim);
-    const auto last = str.substr(delim);
-    if (PHYSFS_mount(first.c_str(), last.c_str(), 0) == 0)
+    const auto last = str.substr(delim+1);
+    if (PHYSFS_mount(first.c_str(), last.c_str(), 1) == 0)
         std::cerr << "Failed to mount directory \"" << first << '"'
                   << ", error: " << PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()) << std::endl;
+    else
+        std::cout << "mounted dir" << first << " to " << last << std::endl;
 }
 
 Engine::Engine(
@@ -77,13 +80,19 @@ Engine::Engine(
         for (auto& opt : cli["mount"].as<std::vector<std::string>>())
             mountDir(opt);
     }
+    try {
+        auto path = std::filesystem::current_path().append("assets");
+        File::mount(path.c_str(), nullptr);
+    }
+    catch (const std::exception& e) {
+        spdlog::error("Failed to mount asset dir: {}", e.what());
+    }
     initLogging(cli["log"].as<spdlog::level::level_enum>());
 }
 
 Engine::~Engine()
 {
     spdlog::info("Goodbye!");
-    spdlog::shutdown();
     SDL_Quit();
 }
 

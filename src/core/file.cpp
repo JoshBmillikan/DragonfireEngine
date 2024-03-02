@@ -16,7 +16,7 @@ File::File(const char* path, const Mode mode)
         case Mode::APPEND: fp = PHYSFS_openAppend(path); break;
     }
     if (fp == nullptr)
-        throw PhysFsError();
+        throw PhysFsError(path);
 }
 
 size_t File::length() const
@@ -120,4 +120,15 @@ PhysFsError::PhysFsError(int errorCode)
     : runtime_error(PHYSFS_getErrorByCode(static_cast<PHYSFS_ErrorCode>(errorCode)))
 {
 }
-}// namespace raven
+
+PhysFsError::PhysFsError(const char* path, int errorCode)
+    : std::runtime_error(fmt::format(
+          "{}, file: \"{}\"",
+          PHYSFS_getErrorByCode(static_cast<PHYSFS_ErrorCode>(errorCode)),
+          path
+      ))
+{
+}
+
+PhysFsError::PhysFsError(const char* path) : PhysFsError(path, PHYSFS_getLastErrorCode()) {}
+}// namespace dragonfire

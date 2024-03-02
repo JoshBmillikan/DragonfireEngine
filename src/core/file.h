@@ -78,6 +78,8 @@ public:
 struct PhysFsError final : std::runtime_error {
     PhysFsError();
     explicit PhysFsError(int errorCode);
+    PhysFsError(const char* path, int errorCode);
+    explicit PhysFsError(const char* path);
 };
 
 }// namespace dragonfire

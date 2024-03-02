@@ -66,34 +66,30 @@ glm::vec4 computeBounds(const Vertex* vertices, const uint32_t vertexCount)
 Model VulkanGltfLoader::load(const char* path)
 {
     loadAsset(path);
-    const vk::DeviceSize totalSize = computeBufferSize();
-    void* ptr = getStagingPtr(totalSize);
-    SmallVector<vk::Fence, 24> fences;
     Model out(std::string(asset.meshes[0].name));
 
     for (auto& mesh : asset.meshes) {
         uint32_t primitiveId = 0;
         for (auto& primitive : mesh.primitives) {
-            auto [meshHandle, bounds, fence1] = loadPrimitive(primitive, mesh, ptr, primitiveId);
-            fences.pushBack(fence1);
+            auto [meshHandle, bounds, fence] = loadPrimitive(primitive, mesh, primitiveId);
+            if (device.waitForFences(fence, true, UINT64_MAX) != vk::Result::eSuccess)
+                SPDLOG_ERROR("Fence wait failed");
+            device.destroy(fence);
             // TODO material & texture data
             Material* material = nullptr;
             if (primitive.materialIndex.has_value()) {
                 auto& materialInfo = asset.materials[primitive.materialIndex.value()];
-                auto [mat, f] = loadMaterial(materialInfo, ptr);
+                auto [mat, f] = loadMaterial(materialInfo);
                 material = mat;
-                for (const auto fence : f)
-                    fences.pushBack(fence);
+                if (device.waitForFences(f.size(), f.data(), true, UINT64_MAX) != vk::Result::eSuccess)
+                    SPDLOG_ERROR("Fence wait failed");
+                for (auto fn : f)
+                    device.destroy(fn);
             }
             out.addPrimitive(reinterpret_cast<dragonfire::Mesh>(meshHandle), material, bounds);
             primitiveId++;
         }
     }
-
-    if (device.waitForFences(fences.size(), fences.data(), true, UINT64_MAX) != vk::Result::eSuccess)
-        SPDLOG_ERROR("Fence wait failed");
-    for (const auto fence : fences)
-        device.destroy(fence);
     return out;
 }
 
@@ -135,13 +131,18 @@ static void optimizeMesh(
 std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::loadPrimitive(
     const fastgltf::Primitive& primitive,
     const fastgltf::Mesh& mesh,
-    void*& ptr,
     uint32_t primitiveId
-) const
+)
 {
+    const auto& posAccessor = asset.accessors[primitive.findAttribute("POSITION")->second];
+    vk::DeviceSize size = posAccessor.count * sizeof(Vertex);
+    if (primitive.indicesAccessor.has_value()) {
+        const auto& indicesAccessor = asset.accessors[primitive.indicesAccessor.value()];
+        size += indicesAccessor.count * sizeof(uint32_t);
+    }
+    void* ptr = getStagingPtr(size);
     const auto vertices = static_cast<Vertex*>(ptr);
     size_t vertexCount = 0;
-    const auto& posAccessor = asset.accessors[primitive.findAttribute("POSITION")->second];
     fastgltf::iterateAccessor<glm::vec3>(asset, posAccessor, [&](const glm::vec3 pos) {
         vertices[vertexCount++] = Vertex{.position = pos, .normal = {1, 0, 0}, .uv = {0, 0}};
     });
@@ -168,7 +169,8 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
         );
     }
 
-    auto indices = reinterpret_cast<uint32_t*>(static_cast<char*>(ptr) + sizeof(Vertex) * vertexCount);
+    auto indices
+        = reinterpret_cast<uint32_t*>(static_cast<unsigned char*>(ptr) + sizeof(Vertex) * vertexCount);
     size_t indexCount = 0;
     if (primitive.indicesAccessor.has_value()) {
         const auto& indicesAccessor = asset.accessors[primitive.indicesAccessor.value()];
@@ -179,25 +181,16 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
         optimizeMesh(vertices, vertexCount, indices, indexCount, ptr);
     flushStagingBuffer();
 
-    const size_t vertexOffset = reinterpret_cast<uintptr_t>(vertices)
-                                - reinterpret_cast<uintptr_t>(getStagingBuffer().getInfo().pMappedData);
-    const size_t indexOffset = reinterpret_cast<uintptr_t>(indices)
-                               - reinterpret_cast<uintptr_t>(getStagingBuffer().getInfo().pMappedData);
+    const size_t vertexOffset = vertexCount * sizeof(Vertex);
+    const size_t indexOffset = indexCount * sizeof(uint32_t);
 
     const auto name = primitiveId > 0 ? fmt::format("{}_{}", mesh.name, primitiveId) : std::string(mesh.name);
     const glm::vec4 bounds = computeBounds(vertices, vertexCount);
-    const size_t baseOffset = reinterpret_cast<uintptr_t>(ptr)
-                              - reinterpret_cast<uintptr_t>(getStagingBuffer().getInfo().pMappedData);
-    auto [m, fence] = meshRegistry.uploadMesh(
-        name,
-        getStagingBuffer(),
-        vertexCount,
-        indexCount,
-        vertexOffset + baseOffset,
-        indexOffset + baseOffset
-    );
 
-    ptr = static_cast<char*>(ptr) + vertexCount * sizeof(Vertex) + indexCount * sizeof(uint32_t);
+    auto [m, fence]
+        = meshRegistry
+              .uploadMesh(name, getStagingBuffer(), vertexCount, indexCount, vertexOffset, indexOffset);
+
     return {m, bounds, fence};
 }
 
@@ -263,9 +256,7 @@ static RE2 FRAG_REGEX("fs-([a-zA-Z_0-9]+)", RE2::Quiet);
 static RE2 GEOM_REGEX("geom-([a-zA-Z_0-9]+)", RE2::Quiet);
 static RE2 TESS_REGEX("teseval-([a-zA-Z_0-9]+).*tesctrl=(a-zA-Z_0-9]+)", RE2::Quiet);
 
-std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(
-    const fastgltf::Material& material,
-    void*& ptr
+std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(const fastgltf::Material& material
 )
 {
     PipelineInfo pipelineInfo;
@@ -337,6 +328,7 @@ void VulkanGltfLoader::loadAsset(const char* path)
         type == fastgltf::GltfType::glTF ? parser.loadGLTF(&buffer, PHYSFS_getRealDir(path), opts)
                                          : parser.loadBinaryGLTF(&buffer, PHYSFS_getRealDir(path), opts)
     ));
+    SPDLOG_TRACE("Loaded asset file \"{}\"", path);
 }
 
 vk::DeviceSize VulkanGltfLoader::computeBufferSize() const

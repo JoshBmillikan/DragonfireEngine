@@ -19,6 +19,7 @@ public:
     Model() = default;
 
     Model(std::string name) : name(std::move(name)) {}
+    virtual ~Model();
 
     class Loader {
     public:

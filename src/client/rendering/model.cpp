@@ -15,4 +15,11 @@ void Model::addPrimitive(
 {
     primitives.emplace(mesh, material, bounds, transform);
 }
+
+Model::~Model()
+{
+    for (auto& prim : primitives) {
+        delete prim.material;
+    }
+}
 }// namespace dragonfire
