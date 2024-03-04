@@ -24,9 +24,13 @@ public:
         GpuAllocator& allocator,
         PipelineFactory* pipelineFactory
     );
-    ~VulkanGltfLoader() override;
+    ~VulkanGltfLoader() override = default;
 
     Model load(const char* path) override;
+    VulkanGltfLoader(const VulkanGltfLoader& other) = delete;
+    VulkanGltfLoader(VulkanGltfLoader&& other) noexcept = delete;
+    VulkanGltfLoader& operator=(const VulkanGltfLoader& other) = delete;
+    VulkanGltfLoader& operator=(VulkanGltfLoader&& other) noexcept = delete;
 
 private:
     fastgltf::Parser parser;
@@ -45,7 +49,6 @@ private:
     );
     std::pair<Material*, SmallVector<vk::Fence>> loadMaterial(const fastgltf::Material& material);
     void loadAsset(const char* path);
-    [[nodiscard]] vk::DeviceSize computeBufferSize() const;
 };
 
 }// namespace dragonfire::vulkan

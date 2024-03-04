@@ -38,6 +38,7 @@ App::App(const int argc, char** const argv) : Engine(argc, argv, extraCommands)
     renderer = std::make_unique<vulkan::VulkanRenderer>(cli["vulkan-validation"].as<bool>());
     auto loader = renderer->getModelLoader();
     Model bunny = loader->load("assets/models/bunny.glb");
+    loader.reset();
 }
 
 App::~App()

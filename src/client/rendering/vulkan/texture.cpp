@@ -7,7 +7,10 @@
 #include <mutex>
 
 namespace dragonfire::vulkan {
-TextureRegistry::TextureRegistry(GpuAllocator& allocator) : StagingBuffer(allocator) {}
+TextureRegistry::TextureRegistry(GpuAllocator& allocator)
+    : StagingBuffer(allocator, 0, true, "texture staging buffer")
+{
+}
 
 Texture* TextureRegistry::getCreateTexture(const std::string_view name, ImageData&& image)
 {

@@ -13,7 +13,7 @@ extern "C" int main(const int argc, char** argv)
     dragonfire::crashOnException([&] {
         dragonfire::App app(argc, argv);
         app.run();
-        spdlog::shutdown();
     });
+    spdlog::shutdown();
     return 0;
 }

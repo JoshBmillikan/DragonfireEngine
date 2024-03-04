@@ -6,7 +6,12 @@
 
 namespace dragonfire::vulkan {
 
-StagingBuffer::StagingBuffer(GpuAllocator& allocator, const vk::DeviceSize initialSize, const bool coherent)
+StagingBuffer::StagingBuffer(
+    GpuAllocator& allocator,
+    const vk::DeviceSize initialSize,
+    const bool coherent,
+    const char* name
+)
     : allocator(allocator)
 {
     memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
@@ -23,7 +28,7 @@ StagingBuffer::StagingBuffer(GpuAllocator& allocator, const vk::DeviceSize initi
         allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
         allocInfo.requiredFlags = memoryPropertyFlags;
         allocInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
-        stagingBuffer = allocator.allocate(bufInfo, allocInfo);
+        stagingBuffer = allocator.allocate(bufInfo, allocInfo, name);
     }
 }
 

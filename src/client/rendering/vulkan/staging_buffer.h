@@ -14,8 +14,14 @@ class StagingBuffer {
     VkMemoryPropertyFlags memoryPropertyFlags;
 
 public:
-    virtual ~StagingBuffer() = default;
-    StagingBuffer(GpuAllocator& allocator, vk::DeviceSize initialSize = 0, bool coherent = true);
+    virtual ~StagingBuffer() { stagingBuffer.destroy(); }
+
+    StagingBuffer(
+        GpuAllocator& allocator,
+        vk::DeviceSize initialSize = 0,
+        bool coherent = true,
+        const char* name = "staging buffer"
+    );
 
     [[nodiscard]] const Buffer& getStagingBuffer() const { return stagingBuffer; }
 

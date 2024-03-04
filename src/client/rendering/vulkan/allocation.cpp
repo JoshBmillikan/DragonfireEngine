@@ -48,6 +48,11 @@ GpuAllocation& GpuAllocation::operator=(GpuAllocation&& other) noexcept
     return *this;
 }
 
+void GpuAllocation::setName(const char* name) const
+{
+    vmaSetAllocationName(allocator, allocation, name);
+}
+
 void Buffer::destroy() noexcept
 {
     if (allocator)
@@ -57,14 +62,24 @@ void Buffer::destroy() noexcept
     info.offset = info.size = 0;
 }
 
-Buffer::Buffer(Buffer&& other) noexcept : GpuAllocation(std::move(other)), buffer(other.buffer) {}
+Buffer::Buffer(Buffer&& other) noexcept : buffer(other.buffer)
+{
+    allocator = other.allocator;
+    allocation = other.allocation;
+    info = other.info;
+    other.allocator = nullptr;
+}
 
 Buffer& Buffer::operator=(Buffer&& other) noexcept
 {
     if (this == &other)
         return *this;
-    GpuAllocation::operator=(std::move(other));
+    destroy();
+    allocator = other.allocator;
+    allocation = other.allocation;
+    info = other.info;
     buffer = other.buffer;
+    other.allocator = nullptr;
     return *this;
 }
 
@@ -76,18 +91,26 @@ void Image::destroy() noexcept
 }
 
 Image::Image(Image&& other) noexcept
-    : GpuAllocation(std::move(other)), image(other.image), format(other.format), extent(other.extent)
+    : image(other.image), format(other.format), extent(other.extent)
 {
+    allocator = other.allocator;
+    allocation = other.allocation;
+    info = other.info;
+    other.allocator = nullptr;
 }
 
 Image& Image::operator=(Image&& other) noexcept
 {
     if (this == &other)
         return *this;
-    GpuAllocation::operator=(std::move(other));
+    destroy();
+    allocator = other.allocator;
+    allocation = other.allocation;
+    info = other.info;
     image = other.image;
     format = other.format;
     extent = other.extent;
+    other.allocator = nullptr;
     return *this;
 }
 
@@ -140,7 +163,8 @@ GpuAllocator::GpuAllocator(
 
 Buffer GpuAllocator::allocate(
     const vk::BufferCreateInfo& createInfo,
-    const VmaAllocationCreateInfo& allocInfo
+    const VmaAllocationCreateInfo& allocInfo,
+    const char* allocationName
 ) const
 {
     Buffer buffer;
@@ -150,11 +174,18 @@ Buffer GpuAllocator::allocate(
     resultCheck(static_cast<vk::Result>(result), "VMA failed to allocate buffer");
     buffer.buffer = b;
     buffer.allocator = allocator;
+
+    if (allocationName)
+        vmaSetAllocationName(allocator, buffer.allocation, allocationName);
+
     return buffer;
 }
 
-Image GpuAllocator::allocate(const vk::ImageCreateInfo& createInfo, const VmaAllocationCreateInfo& allocInfo)
-    const
+Image GpuAllocator::allocate(
+    const vk::ImageCreateInfo& createInfo,
+    const VmaAllocationCreateInfo& allocInfo,
+    const char* allocationName
+) const
 {
     Image image;
     const VkImageCreateInfo& create = createInfo;
@@ -165,6 +196,10 @@ Image GpuAllocator::allocate(const vk::ImageCreateInfo& createInfo, const VmaAll
     image.allocator = allocator;
     image.format = createInfo.format;
     image.extent = createInfo.extent;
+
+    if (allocationName)
+        vmaSetAllocationName(allocator, image.allocation, allocationName);
+
     return image;
 }
 

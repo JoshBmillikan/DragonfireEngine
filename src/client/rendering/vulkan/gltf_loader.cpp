@@ -38,12 +38,10 @@ VulkanGltfLoader::VulkanGltfLoader(
     GpuAllocator& allocator,
     PipelineFactory* pipelineFactory
 )
-    : StagingBuffer(allocator, 4096, false), meshRegistry(meshRegistry), textureRegistry(textureRegistry),
+    : StagingBuffer(allocator, 4096, false, "mesh staging buffer"), meshRegistry(meshRegistry), textureRegistry(textureRegistry),
       pipelineFactory(pipelineFactory), sampleCount(sampleCount), device(ctx.device)
 {
 }
-
-VulkanGltfLoader::~VulkanGltfLoader() = default;
 
 glm::vec4 computeBounds(const Vertex* vertices, const uint32_t vertexCount)
 {
@@ -81,10 +79,12 @@ Model VulkanGltfLoader::load(const char* path)
                 auto& materialInfo = asset.materials[primitive.materialIndex.value()];
                 auto [mat, f] = loadMaterial(materialInfo);
                 material = mat;
-                if (device.waitForFences(f.size(), f.data(), true, UINT64_MAX) != vk::Result::eSuccess)
-                    SPDLOG_ERROR("Fence wait failed");
-                for (auto fn : f)
-                    device.destroy(fn);
+                if (!f.empty()) {
+                    if (device.waitForFences(f.size(), f.data(), true, UINT64_MAX) != vk::Result::eSuccess)
+                        SPDLOG_ERROR("Fence wait failed");
+                    for (const auto fn : f)
+                        device.destroy(fn);
+                }
             }
             out.addPrimitive(reinterpret_cast<dragonfire::Mesh>(meshHandle), material, bounds);
             primitiveId++;
@@ -199,14 +199,16 @@ struct Overloaded : Ts... {
     using Ts::operator()...;
 };
 
-static ImageData loadImageData(const fastgltf::DataSource& dataSource)
+static ImageData loadImageData(const fastgltf::DataSource& dataSource, const fastgltf::Asset& asset)
 {
     return std::visit(
         Overloaded{
             [](auto) { return ImageData{}; },
-            [](const fastgltf::sources::BufferView& buffer) {
-                crash("Not yet implemented");
-                return ImageData{};
+            [&](const fastgltf::sources::BufferView& buffer) {
+                auto& view = asset.bufferViews[buffer.bufferViewIndex];
+                auto& buf = asset.buffers[view.bufferIndex];
+                assert(!std::holds_alternative<fastgltf::sources::BufferView>(buf.data));
+                return loadImageData(buf.data, asset);
             },
             [](const fastgltf::sources::URI& uri) {
                 const auto s = TempString(uri.uri.path());
@@ -298,9 +300,9 @@ std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(cons
 
     if (material.pbrData.baseColorTexture.has_value()) {
         auto& texture = asset.textures[material.pbrData.baseColorTexture.value().textureIndex];
-        auto& image = asset.images[texture.imageIndex.value()];
+        const auto& image = asset.images[texture.imageIndex.value()];
         auto name = texture.name.empty() ? image.name : texture.name;
-        ImageData imageData = loadImageData(image.data);
+        ImageData imageData = loadImageData(image.data, asset);
         // todo textures
     }
     const TextureIds textureIds{
@@ -329,14 +331,6 @@ void VulkanGltfLoader::loadAsset(const char* path)
                                          : parser.loadBinaryGLTF(&buffer, PHYSFS_getRealDir(path), opts)
     ));
     SPDLOG_TRACE("Loaded asset file \"{}\"", path);
-}
-
-vk::DeviceSize VulkanGltfLoader::computeBufferSize() const
-{
-    vk::DeviceSize size = 0;
-    for (const auto& b : asset.buffers)
-        size += b.byteLength;
-    return padToAlignment(size, 16);
 }
 
 }// namespace dragonfire::vulkan

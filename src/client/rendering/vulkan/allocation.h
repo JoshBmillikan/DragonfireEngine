@@ -24,6 +24,7 @@ public:
     GpuAllocation(GpuAllocation&& other) noexcept;
     GpuAllocation& operator=(const GpuAllocation& other) = delete;
     GpuAllocation& operator=(GpuAllocation&& other) noexcept;
+    void setName(const char* name) const;
 
 protected:
     GpuAllocation() = default;
@@ -104,11 +105,13 @@ public:
 
     [[nodiscard]] Buffer allocate(
         const vk::BufferCreateInfo& createInfo,
-        const VmaAllocationCreateInfo& allocInfo
+        const VmaAllocationCreateInfo& allocInfo,
+        const char* allocationName = nullptr
     ) const;
     [[nodiscard]] Image allocate(
         const vk::ImageCreateInfo& createInfo,
-        const VmaAllocationCreateInfo& allocInfo
+        const VmaAllocationCreateInfo& allocInfo,
+        const char* allocationName
     ) const;
 
     void destroy();

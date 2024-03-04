@@ -106,6 +106,8 @@ public:
         return *this;
     }
 
+    [[nodiscard]] bool empty() const { return start == endPtr; }
+
     SmallVector& operator=(SmallVector&& other) noexcept
     {
         if (this == &other)
@@ -124,7 +126,7 @@ public:
             for (size_t i = 0; i < s; i++) {
                 start[i].~T();
             }
-            if (isSpilled())
+            if (s > 0 && isSpilled())
                 allocator.deallocate(start, capacity());
         }
     }

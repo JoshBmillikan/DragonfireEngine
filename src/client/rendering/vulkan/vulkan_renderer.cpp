@@ -157,6 +157,12 @@ vulkan::VulkanRenderer::~VulkanRenderer()
     pipelineFactory.reset();
     descriptorLayoutManager.destroy();
     meshRegistry.reset();
+    textureRegistry.reset();
+    msaaImage.destroy();
+    depthBuffer.destroy();
+    context.device.destroy(depthView);
+    context.device.destroy(msaaView);
+    globalUBO.destroy();
     swapchain.destroy();
     allocator.destroy();
     context.destroy();
