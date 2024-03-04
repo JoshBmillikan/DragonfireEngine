@@ -19,11 +19,12 @@ void crash(const char* msg)
 void crash(const char* msg, const std::source_location& location)
 {
     spdlog::critical(
-        "Crash \"{}\" at line {} in function {} in file {}",
+        "Crash \"{}\" at line {} in function {} in file {}:{}",
         msg,
         location.line(),
         location.function_name(),
-        location.file_name()
+        location.file_name(),
+        location.line()
     );
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, APP_DISPLAY_NAME, msg, nullptr);
     SDL_Quit();

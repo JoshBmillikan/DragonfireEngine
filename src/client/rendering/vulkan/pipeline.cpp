@@ -43,7 +43,7 @@ void Pipeline::destroy(const vk::Device device)
     layout = nullptr;
 }
 
-size_t PipelineInfo::hash(const PipelineInfo& info) noexcept
+size_t PipelineInfo::Hash::operator()(const PipelineInfo& info) const noexcept
 {
     size_t hash = std::hash<uint8_t>()(static_cast<uint8_t>(info.type));
     hashCombine(hash, info.sampleCount);

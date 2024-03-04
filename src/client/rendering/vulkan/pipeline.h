@@ -55,7 +55,10 @@ struct PipelineInfo {
     vk::PipelineDepthStencilStateCreateInfo depthState;
     std::string vertexCompShader, fragmentShader, geometryShader, tessEvalShader, tessCtrlShader;
 
-    static size_t hash(const PipelineInfo& info) noexcept;
+    struct Hash {
+        size_t operator()(const PipelineInfo& info) const noexcept;
+    };
+
     bool operator==(const PipelineInfo& other) const noexcept;
 };
 
@@ -81,7 +84,7 @@ private:
     static constexpr const char* CACHE_PATH = "cache/pipeline.cache";
     static constexpr const char* SHADER_DIR = "assets/shaders";
     std::shared_mutex mutex;
-    std::unordered_map<PipelineInfo, Pipeline, decltype(&PipelineInfo::hash)> pipelines;
+    std::unordered_map<PipelineInfo, Pipeline, PipelineInfo::Hash> pipelines;
     vk::PipelineCache cache;
     StringMap<std::pair<vk::ShaderModule, spv_reflect::ShaderModule>> shaders;
     DescriptorLayoutManager* descriptorLayoutManager = nullptr;
@@ -91,7 +94,7 @@ private:
     Pipeline createPipeline(const PipelineInfo& info);
     void loadShaders(const char* dir = SHADER_DIR);
     void savePipelineCache() const;
-    vk::PipelineLayout createLayout(const PipelineInfo& info) const;
+    [[nodiscard]] vk::PipelineLayout createLayout(const PipelineInfo& info) const;
 };
 
 }// namespace dragonfire::vulkan
