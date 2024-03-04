@@ -47,7 +47,7 @@ void DescriptorLayoutManager::destroy()
 
 DescriptorLayoutManager::DescriptorLayoutManager(DescriptorLayoutManager&& other) noexcept
 {
-    std::unique_lock lock(other.mutex);
+    std::scoped_lock lock(other.mutex);
     device = other.device;
     other.device = nullptr;
     layouts = std::move(other.layouts);

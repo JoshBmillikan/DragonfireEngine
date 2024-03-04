@@ -8,6 +8,7 @@
 #include "core/crash.h"
 #include "core/file.h"
 #include "core/utility/utility.h"
+#include <ankerl/unordered_dense.h>
 #include <core/utility/small_vector.h>
 #include <physfs.h>
 #include <ranges>
@@ -320,11 +321,11 @@ static void reflectPushConstantData(
     uint32_t pushConstantCount;
     SpvReflectBlockVariable** vars = nullptr;
     if (reflect->EnumeratePushConstantBlocks(&pushConstantCount, vars) != SPV_REFLECT_RESULT_SUCCESS)
-        throw std::runtime_error("Failed to ennumerate push constants");
+        throw std::runtime_error("Failed to enumerate push constants");
     vars = static_cast<SpvReflectBlockVariable**>(alloca(sizeof(SpvReflectBlockVariable*) * pushConstantCount)
     );
     if (reflect->EnumeratePushConstantBlocks(&pushConstantCount, vars) != SPV_REFLECT_RESULT_SUCCESS)
-        throw std::runtime_error("Failed to ennumerate push constants");
+        throw std::runtime_error("Failed to enumerate push constants");
 
     for (uint32_t i = 0; i < pushConstantCount; i++) {
         vk::PushConstantRange& range = pushConstants.emplace();
@@ -334,10 +335,9 @@ static void reflectPushConstantData(
     }
 }
 
-static void reflectSetLayouts(
+static void reflectSetLayoutBindings(
     const spv_reflect::ShaderModule* reflect,
-    SmallVector<vk::DescriptorSetLayout>& setLayouts,
-    DescriptorLayoutManager* descriptorLayoutManager
+    ankerl::unordered_dense::map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>>& out
 )
 {
     uint32_t setCount;
@@ -349,20 +349,55 @@ static void reflectSetLayouts(
         throw std::runtime_error("Failed to reflect descriptor sets");
 
     for (uint32_t i = 0; i < setCount; i++) {
-        SmallVector<vk::DescriptorSetLayoutBinding> bindings;
+        auto& bindings = out[i];
         bindings.reserve(sets[i]->binding_count);
         for (uint32_t j = 0; j < sets[i]->binding_count; j++) {
             const SpvReflectDescriptorBinding* binding = sets[i]->bindings[j];
-            auto& b = bindings.emplace();
+            auto& b = bindings.emplace_back();
             b.binding = binding->binding;
             b.descriptorCount = binding->count;
             b.descriptorType = static_cast<vk::DescriptorType>(binding->descriptor_type);
             b.stageFlags = static_cast<vk::ShaderStageFlags>(reflect->GetShaderStage());
         }
-        vk::DescriptorSetLayout setLayout = descriptorLayoutManager->createLayout(bindings);
-        if (!setLayouts.contains(setLayout))
-            setLayouts.pushBack(setLayout);
     }
+}
+
+static void sortDedupBindings(std::vector<vk::DescriptorSetLayoutBinding>& bindings)
+{
+    std::sort(bindings.begin(), bindings.end(), [](const auto& a, const auto& b) {
+        return a.binding < b.binding;
+    });
+    for (uint32_t i = 0; i < bindings.size() - 1; i++) {
+        if (bindings[i].binding == bindings[i + 1].binding) {
+            bindings[i].stageFlags |= bindings[i + 1].stageFlags;
+            bindings[i + 1].stageFlags |= bindings[i].stageFlags;
+            bindings[i].descriptorCount = bindings[i + 1].descriptorCount
+                = std::max(bindings[i].descriptorCount, bindings[i + 1].descriptorCount);
+        }
+    }
+    auto [first, last] = std::ranges::unique(
+        bindings,
+        [](const vk::DescriptorSetLayoutBinding& a, const vk::DescriptorSetLayoutBinding& b) {
+            return a.binding == b.binding && a.descriptorType == b.descriptorType;
+        }
+    );
+    bindings.erase(first, last);
+}
+
+static SmallVector<vk::DescriptorSetLayout> createSetLayouts(
+    ankerl::unordered_dense::map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>>& bindingMap,
+    DescriptorLayoutManager* descriptorLayoutManager
+)
+{
+    SmallVector<vk::DescriptorSetLayout> out;
+    for (auto& [set, bindings] : bindingMap) {
+        if (bindings.empty())
+            continue;
+        sortDedupBindings(bindings);
+        vk::DescriptorSetLayout layout = descriptorLayoutManager->createLayout(bindings);
+        out.pushBack(layout);
+    }
+    return out;
 }
 
 vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info) const
@@ -381,11 +416,12 @@ vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info) const
 
     vk::PipelineLayoutCreateInfo createInfo{};
     SmallVector<vk::PushConstantRange, 6> pushConstantRanges;
-    SmallVector<vk::DescriptorSetLayout> setLayouts;
+    ankerl::unordered_dense::map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> setBindings;
     for (uint32_t i = 0; i < reflectCount; i++) {
         reflectPushConstantData(reflectData[i], pushConstantRanges);
-        reflectSetLayouts(reflectData[i], setLayouts, descriptorLayoutManager);
+        reflectSetLayoutBindings(reflectData[i], setBindings);
     }
+    auto setLayouts = createSetLayouts(setBindings, descriptorLayoutManager);
     createInfo.pPushConstantRanges = pushConstantRanges.data();
     createInfo.pushConstantRangeCount = pushConstantRanges.size();
     createInfo.pSetLayouts = setLayouts.data();
