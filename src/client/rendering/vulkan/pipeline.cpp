@@ -280,6 +280,7 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
         crash("not yet implemented");// TODO
     }
 
+    const vk::PipelineLayout pipelineLayout = createLayout(info);
     vk::GraphicsPipelineCreateInfo createInfo{};
     createInfo.renderPass = nullptr;
     createInfo.pDynamicState = &dynamicStateInfo;
@@ -292,14 +293,14 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
     createInfo.pDepthStencilState = &info.depthState;
     createInfo.pRasterizationState = &info.rasterState;
     createInfo.pVertexInputState = &vertexInput;
-    createInfo.layout = createLayout(info);
+    createInfo.layout = pipelineLayout;
 
     auto [result, pipeline] = device.createGraphicsPipeline(cache, createInfo);
     if (result != vk::Result::eSuccess)
         throw std::runtime_error("Failed to create graphics pipeline");
     std::unique_lock lock(mutex);
     return pipelines[info]
-           = Pipeline(pipeline, vk::PipelineBindPoint::eGraphics, createInfo.layout, pipelineCount++);
+           = Pipeline(pipeline, vk::PipelineBindPoint::eGraphics, pipelineLayout, pipelineCount++);
 }
 
 void PipelineFactory::savePipelineCache() const
@@ -364,9 +365,7 @@ static void reflectSetLayoutBindings(
 
 static void sortDedupBindings(std::vector<vk::DescriptorSetLayoutBinding>& bindings)
 {
-    std::sort(bindings.begin(), bindings.end(), [](const auto& a, const auto& b) {
-        return a.binding < b.binding;
-    });
+    std::ranges::sort(bindings, [](const auto& a, const auto& b) { return a.binding < b.binding; });
     for (uint32_t i = 0; i < bindings.size() - 1; i++) {
         if (bindings[i].binding == bindings[i + 1].binding) {
             bindings[i].stageFlags |= bindings[i + 1].stageFlags;

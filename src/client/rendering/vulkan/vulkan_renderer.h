@@ -55,7 +55,6 @@ private:
     Buffer globalUBO;
     vk::DeviceSize uboOffset = 0;
     Pipeline cullPipeline;
-    vk::PipelineLayout cullComputeLayout;
     std::unique_ptr<TextureRegistry> textureRegistry;
 
     struct {
@@ -104,6 +103,7 @@ private:
     );
 
     void initBuffers();
+    Pipeline createComputePipeline() const;
 
     const Frame& getCurrentFrame() const { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
 

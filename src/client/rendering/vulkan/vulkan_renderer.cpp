@@ -8,7 +8,6 @@
 #include "core/utility/utility.h"
 #include "gltf_loader.h"
 #include "vulkan_material.h"
-
 #include <core/utility/math_utils.h>
 #include <ranges>
 #include <spdlog/spdlog.h>
@@ -60,6 +59,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     textureRegistry = std::make_unique<TextureRegistry>(allocator);
 
     initBuffers();
+    cullPipeline = createComputePipeline();
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
         frames[i] = Frame(context, allocator, maxDrawCount);
@@ -237,7 +237,7 @@ void vulkan::VulkanRenderer::computePrePass(const uint32_t drawCount, const bool
 {
     const Frame& frame = getCurrentFrame();
     const vk::CommandBuffer cmd = frame.cmd;
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, cullComputeLayout, 0, frame.computeSet, {});
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, cullPipeline.getLayout(), 0, frame.computeSet, {});
     cullPipeline.bind(cmd);
     uint32_t baseIndex = 0;
     for (const auto& info : std::ranges::views::values(pipelineMap)) {
@@ -245,7 +245,7 @@ void vulkan::VulkanRenderer::computePrePass(const uint32_t drawCount, const bool
             continue;
         const uint32_t pushConstants[] = {baseIndex, info.index, drawCount, cull ? 1u : 0};
         cmd.pushConstants(
-            cullComputeLayout,
+            cullPipeline.getLayout(),
             vk::ShaderStageFlagBits::eCompute,
             0,
             sizeof(uint32_t) * 4,
@@ -545,6 +545,15 @@ void vulkan::VulkanRenderer::initBuffers()
         context.device.destroy(depthView);
         throw;
     }
+}
+
+vulkan::Pipeline vulkan::VulkanRenderer::createComputePipeline() const
+{
+    PipelineInfo info{};
+    info.type = PipelineInfo::Type::COMPUTE;
+    info.vertexCompShader = "cull.comp";
+    const auto pipeline = pipelineFactory->getOrCreate(info);
+    return pipeline;
 }
 
 }// namespace dragonfire
