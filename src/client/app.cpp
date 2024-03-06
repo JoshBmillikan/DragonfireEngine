@@ -37,12 +37,17 @@ App::App(const int argc, char** const argv) : Engine(argc, argv, extraCommands)
 
     renderer = std::make_unique<vulkan::VulkanRenderer>(cli["vulkan-validation"].as<bool>());
     auto loader = renderer->getModelLoader();
-    Model bunny = loader->load("assets/models/bunny.glb");
+    model = loader->load("assets/models/bunny.glb");
     loader.reset();
+    SDL_Window* window = renderer->getWindow();
+    int w, h;
+    SDL_GetWindowSize(window, &w, &h);
+    camera = Camera(60.0f, float(w), float(h), 0.1f, 1000.0f);
 }
 
 App::~App()
 {
+    model = Model();
     renderer.reset();
     try {
         PHYSFS_mkdir("config");
@@ -65,6 +70,12 @@ void App::mainLoop(const double deltaTime)
                 break;
         }
     }
+    Transform t{};
+    t.position.y -= 2;
+    t.position.x -= 2;
+    camera.lookAt(t.position);
+    renderer->addDrawable(&model, t);
+    renderer->render(camera);
 }
 
 }// namespace dragonfire

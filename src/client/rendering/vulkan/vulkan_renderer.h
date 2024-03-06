@@ -56,7 +56,6 @@ private:
     vk::DeviceSize uboOffset = 0;
     Pipeline cullPipeline;
     vk::PipelineLayout cullComputeLayout;
-    vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1;
     std::unique_ptr<TextureRegistry> textureRegistry;
 
     struct {
@@ -103,6 +102,8 @@ private:
         uint32_t baseArrayLayer = 0,
         uint32_t layerCount = 1
     );
+
+    void initBuffers();
 
     const Frame& getCurrentFrame() const { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
 

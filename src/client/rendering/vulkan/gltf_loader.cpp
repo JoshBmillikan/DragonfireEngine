@@ -32,14 +32,13 @@ static T& checkGltf(fastgltf::Expected<T>&& expected)
 
 VulkanGltfLoader::VulkanGltfLoader(
     const Context& ctx,
-    const vk::SampleCountFlagBits sampleCount,
     MeshRegistry& meshRegistry,
     TextureRegistry& textureRegistry,
     GpuAllocator& allocator,
     PipelineFactory* pipelineFactory
 )
     : StagingBuffer(allocator, 4096, false, "mesh staging buffer"), meshRegistry(meshRegistry), textureRegistry(textureRegistry),
-      pipelineFactory(pipelineFactory), sampleCount(sampleCount), device(ctx.device)
+      pipelineFactory(pipelineFactory), sampleCount(ctx.sampleCount), device(ctx.device)
 {
 }
 

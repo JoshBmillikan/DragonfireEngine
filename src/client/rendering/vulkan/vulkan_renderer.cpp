@@ -5,8 +5,10 @@
 #include "vulkan_renderer.h"
 #include "core/config.h"
 #include "core/crash.h"
+#include "core/utility/utility.h"
 #include "gltf_loader.h"
 #include "vulkan_material.h"
+
 #include <core/utility/math_utils.h>
 #include <ranges>
 #include <spdlog/spdlog.h>
@@ -56,6 +58,8 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     descriptorLayoutManager = DescriptorLayoutManager(context.device);
     pipelineFactory = std::make_unique<PipelineFactory>(context, &descriptorLayoutManager);
     textureRegistry = std::make_unique<TextureRegistry>(allocator);
+
+    initBuffers();
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
         frames[i] = Frame(context, allocator, maxDrawCount);
@@ -173,7 +177,6 @@ std::unique_ptr<Model::Loader> vulkan::VulkanRenderer::getModelLoader()
 {
     return std::make_unique<VulkanGltfLoader>(
         context,
-        sampleCount,
         *meshRegistry,
         *textureRegistry,
         allocator,
@@ -472,6 +475,76 @@ void vulkan::VulkanRenderer::transistionImageLayout(
 
     const vk::CommandBuffer cmd = getCurrentFrame().cmd;
     cmd.pipelineBarrier(pipelineStart, pipelineEnd, {}, {}, {}, barrier);
+}
+
+static vk::Format getDepthFormat(const vk::PhysicalDevice physicalDevice)
+{
+    constexpr std::array possibleFormats = {
+        vk::Format::eD32Sfloat,
+        vk::Format::eD32SfloatS8Uint,
+        vk::Format::eD24UnormS8Uint,
+    };
+    for (const vk::Format fmt : possibleFormats) {
+        auto props = physicalDevice.getFormatProperties(fmt);
+        if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+            return fmt;
+    }
+    crash("No valid depth image format found");
+}
+
+void vulkan::VulkanRenderer::initBuffers()
+{
+    vk::BufferCreateInfo bufferCreateInfo{};
+    bufferCreateInfo.size = padToAlignment(sizeof(UBOData), 16) * 2;
+    bufferCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+    bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocInfo.priority = 1.0f;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    globalUBO = allocator.allocate(bufferCreateInfo, allocInfo, "global UBO");
+
+    const vk::Format depthFormat = getDepthFormat(context.physicalDevice);
+    vk::ImageCreateInfo imageCreateInfo{};
+    imageCreateInfo.extent = vk::Extent3D(swapchain.getExtent(), 1);
+    imageCreateInfo.format = depthFormat;
+    imageCreateInfo.samples = context.sampleCount;
+    imageCreateInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+    imageCreateInfo.initialLayout = vk::ImageLayout::eUndefined;
+    imageCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+    imageCreateInfo.imageType = vk::ImageType::e2D;
+    imageCreateInfo.mipLevels = 1;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.tiling = vk::ImageTiling::eOptimal;
+    allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocInfo.preferredFlags = 0;
+    allocInfo.flags = 0;
+    depthBuffer = allocator.allocate(imageCreateInfo, allocInfo, "depth buffer");
+
+    imageCreateInfo.format = swapchain.getFormat();
+    imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransientAttachment
+                            | vk::ImageUsageFlagBits::eColorAttachment;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+    msaaImage = allocator.allocate(imageCreateInfo, allocInfo);
+
+    vk::ImageSubresourceRange subRange{};
+    subRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+    subRange.layerCount = 1;
+    subRange.levelCount = 1;
+    subRange.baseArrayLayer = 0;
+    subRange.baseMipLevel = 0;
+    depthView = depthBuffer.createView(context.device, subRange);
+    subRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    try {
+        msaaView = msaaImage.createView(context.device, subRange);
+    }
+    catch (...) {
+        context.device.destroy(depthView);
+        throw;
+    }
 }
 
 }// namespace dragonfire

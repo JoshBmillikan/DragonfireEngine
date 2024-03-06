@@ -90,8 +90,7 @@ void Image::destroy() noexcept
     allocator = nullptr;
 }
 
-Image::Image(Image&& other) noexcept
-    : image(other.image), format(other.format), extent(other.extent)
+Image::Image(Image&& other) noexcept : image(other.image), format(other.format), extent(other.extent)
 {
     allocator = other.allocator;
     allocation = other.allocation;
@@ -112,6 +111,22 @@ Image& Image::operator=(Image&& other) noexcept
     extent = other.extent;
     other.allocator = nullptr;
     return *this;
+}
+
+vk::ImageView Image::createView(
+    const vk::Device device,
+    const vk::ImageSubresourceRange& subresourceRange,
+    const vk::ImageViewType type
+) const
+{
+    assert(image);
+    vk::ImageViewCreateInfo createInfo;
+    createInfo.image = image;
+    createInfo.viewType = type;
+    createInfo.format = format;
+    createInfo.subresourceRange = subresourceRange;
+
+    return device.createImageView(createInfo);
 }
 
 GpuAllocator::GpuAllocator(

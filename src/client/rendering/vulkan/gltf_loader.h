@@ -18,7 +18,6 @@ class VulkanGltfLoader final : public Model::Loader, public StagingBuffer {
 public:
     VulkanGltfLoader(
         const Context& ctx,
-        vk::SampleCountFlagBits sampleCount,
         MeshRegistry& meshRegistry,
         TextureRegistry& textureRegistry,
         GpuAllocator& allocator,

@@ -16,6 +16,7 @@ struct Camera {
     glm::quat rotation = glm::identity<glm::quat>();
 
     Camera(float fov, float width, float height, float zNear, float zFar);
+    Camera() = default;
 
     void lookAt(glm::vec3 target);
 
@@ -31,7 +32,7 @@ struct Camera {
     }
 
 private:
-    float zNear, zFar;
+    float zNear = 0.0f, zFar = 0.0f;
 };
 
 }// namespace dragonfire

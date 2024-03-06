@@ -14,7 +14,7 @@ class StagingBuffer {
     VkMemoryPropertyFlags memoryPropertyFlags;
 
 public:
-    virtual ~StagingBuffer() { stagingBuffer.destroy(); }
+    virtual ~StagingBuffer() = default;
 
     StagingBuffer(
         GpuAllocator& allocator,

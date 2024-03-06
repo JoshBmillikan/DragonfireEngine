@@ -52,7 +52,7 @@ public:
     Buffer& operator=(Buffer&& other) noexcept;
 };
 
-class Image : public GpuAllocation {
+class Image final : public GpuAllocation {
     friend class GpuAllocator;
     vk::Image image;
     vk::Format format{};
@@ -70,6 +70,12 @@ public:
     Image(Image&& other) noexcept;
     Image& operator=(const Image& other) = delete;
     Image& operator=(Image&& other) noexcept;
+
+    [[nodiscard]] vk::ImageView createView(
+        vk::Device device,
+        const vk::ImageSubresourceRange& subresourceRange,
+        vk::ImageViewType type = vk::ImageViewType::e2D
+    ) const;
 };
 
 class GpuAllocator {
@@ -111,7 +117,7 @@ public:
     [[nodiscard]] Image allocate(
         const vk::ImageCreateInfo& createInfo,
         const VmaAllocationCreateInfo& allocInfo,
-        const char* allocationName
+        const char* allocationName = nullptr
     ) const;
 
     void destroy();

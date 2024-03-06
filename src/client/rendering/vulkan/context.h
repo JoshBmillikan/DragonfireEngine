@@ -15,6 +15,7 @@ struct Context {
     vk::SurfaceKHR surface;
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
+    vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1;
 
     struct Queues {
         uint32_t graphicsFamily = 0, presentFamily = 0, transferFamily = 0;
