@@ -18,6 +18,21 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace dragonfire {
 
+static vk::Format getDepthFormat(const vk::PhysicalDevice physicalDevice)
+{
+    constexpr std::array possibleFormats = {
+        vk::Format::eD32Sfloat,
+        vk::Format::eD32SfloatS8Uint,
+        vk::Format::eD24UnormS8Uint,
+    };
+    for (const vk::Format fmt : possibleFormats) {
+        auto props = physicalDevice.getFormatProperties(fmt);
+        if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+            return fmt;
+    }
+    crash("No valid depth image format found");
+}
+
 vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     : BaseRenderer(SDL_WINDOW_VULKAN), maxDrawCount(Config::get().getInt("maxDrawCount").value_or(1 << 14))
 {
@@ -55,14 +70,39 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     swapchain = Swapchain(getWindow(), context, vsync);
     meshRegistry = std::make_unique<MeshRegistry>(context, allocator);
     descriptorLayoutManager = DescriptorLayoutManager(context.device);
-    pipelineFactory = std::make_unique<PipelineFactory>(context, &descriptorLayoutManager);
+    pipelineFactory = std::make_unique<PipelineFactory>(
+        context,
+        &descriptorLayoutManager,
+        getDepthFormat(context.physicalDevice),
+        swapchain.getFormat()
+    );
     textureRegistry = std::make_unique<TextureRegistry>(allocator);
+
+    vk::DescriptorPoolSize sizes[]
+        = {{vk::DescriptorType::eUniformBuffer, 16},
+           {vk::DescriptorType::eCombinedImageSampler, maxDrawCount},
+           {vk::DescriptorType::eStorageBuffer, 64}};
+    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo{};
+    descriptorPoolCreateInfo.flags = vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind;
+    descriptorPoolCreateInfo.poolSizeCount = 3;
+    descriptorPoolCreateInfo.pPoolSizes = sizes;
+    descriptorPoolCreateInfo.maxSets = FRAMES_IN_FLIGHT * 16 + maxDrawCount;
+    descriptorPool = context.device.createDescriptorPool(descriptorPoolCreateInfo);
 
     initBuffers();
     cullPipeline = createComputePipeline();
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
-        frames[i] = Frame(context, allocator, maxDrawCount);
+        frames[i] = Frame(
+            context,
+            descriptorPool,
+            allocator,
+            maxDrawCount,
+            i,
+            globalUBO,
+            uboOffset,
+            descriptorLayoutManager
+        );
     presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
 }
 
@@ -159,6 +199,7 @@ vulkan::VulkanRenderer::~VulkanRenderer()
         frame.textureIndexBuffer.destroy();
     }
     pipelineFactory.reset();
+    context.device.destroy(descriptorPool);
     descriptorLayoutManager.destroy();
     meshRegistry.reset();
     textureRegistry.reset();
@@ -184,60 +225,17 @@ std::unique_ptr<Model::Loader> vulkan::VulkanRenderer::getModelLoader()
     );
 }
 
-vulkan::VulkanRenderer::Frame::Frame(
-    const Context& ctx,
-    const GpuAllocator& allocator,
-    const uint32_t maxDrawCount
-)
-{
-    vk::CommandPoolCreateInfo createInfo{};
-    createInfo.queueFamilyIndex = ctx.queues.graphicsFamily;
-    createInfo.flags = vk::CommandPoolCreateFlagBits::eTransient;
-    pool = ctx.device.createCommandPool(createInfo);
-    vk::CommandBufferAllocateInfo cmdInfo{};
-    cmdInfo.commandPool = pool;
-    cmdInfo.level = vk::CommandBufferLevel::ePrimary;
-    cmdInfo.commandBufferCount = 1;
-    if (ctx.device.allocateCommandBuffers(&cmdInfo, &cmd) != vk::Result::eSuccess)
-        crash("Failed to allocate command bufferes");
-    fence = ctx.device.createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
-    renderingSemaphore = ctx.device.createSemaphore(vk::SemaphoreCreateInfo());
-    presentSemaphore = ctx.device.createSemaphore(vk::SemaphoreCreateInfo());
-
-    vk::BufferCreateInfo bufferInfo{};
-    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
-    bufferInfo.size = maxDrawCount * sizeof(DrawData);
-    VmaAllocationCreateInfo allocInfo{};
-    allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    drawData = allocator.allocate(bufferInfo, allocInfo);
-    bufferInfo.size = maxDrawCount * sizeof(glm::mat4);
-    allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    allocInfo.flags = 0;
-    culledMatrices = allocator.allocate(bufferInfo, allocInfo);
-    bufferInfo.usage |= vk::BufferUsageFlagBits::eIndirectBuffer;
-    bufferInfo.size = maxDrawCount * sizeof(vk::DrawIndexedIndirectCommand);
-    commandBuffer = allocator.allocate(bufferInfo, allocInfo);
-    bufferInfo.size = maxDrawCount * sizeof(uint32_t);
-    allocInfo.preferredFlags = 0;
-    countBuffer = allocator.allocate(bufferInfo, allocInfo);
-    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
-    bufferInfo.size = maxDrawCount * sizeof(TextureIds);
-    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
-    textureIndexBuffer = allocator.allocate(bufferInfo, allocInfo);
-
-    // TODO descriptor sets
-}
-
 void vulkan::VulkanRenderer::computePrePass(const uint32_t drawCount, const bool cull)
 {
     const Frame& frame = getCurrentFrame();
     const vk::CommandBuffer cmd = frame.cmd;
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, cullPipeline.getLayout(), 0, frame.computeSet, {});
+    cmd.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute,
+        cullPipeline.getLayout(),
+        0,
+        frame.computeSet,
+        {}
+    );
     cullPipeline.bind(cmd);
     uint32_t baseIndex = 0;
     for (const auto& info : std::ranges::views::values(pipelineMap)) {
@@ -326,12 +324,29 @@ void vulkan::VulkanRenderer::beginRendering()
     vk::RenderingAttachmentInfo color{}, depth{};
     color.clearValue = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f};
     color.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    color.imageView = swapchain.currentView();
-    color.loadOp = vk::AttachmentLoadOp::eClear;
-    color.storeOp = vk::AttachmentStoreOp::eStore;
-    color.resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    color.resolveImageView = msaaView;
-    color.resolveMode = vk::ResolveModeFlagBits::eAverage;
+    if (context.sampleCount == vk::SampleCountFlagBits::e1) {
+        color.imageView = swapchain.currentView();
+        color.loadOp = vk::AttachmentLoadOp::eClear;
+        color.storeOp = vk::AttachmentStoreOp::eStore;
+        color.resolveMode = vk::ResolveModeFlagBits::eNone;
+    }
+    else {
+        transistionImageLayout(
+            msaaImage,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::AccessFlagBits::eNone,
+            vk::AccessFlagBits::eColorAttachmentWrite,
+            vk::PipelineStageFlagBits::eTopOfPipe,
+            vk::PipelineStageFlagBits::eColorAttachmentOutput
+        );
+        color.imageView = msaaView;
+        color.loadOp = vk::AttachmentLoadOp::eClear;
+        color.storeOp = vk::AttachmentStoreOp::eStore;
+        color.resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        color.resolveImageView = swapchain.currentView();
+        color.resolveMode = vk::ResolveModeFlagBits::eAverage;
+    }
 
     depth.clearValue = vk::ClearDepthStencilValue{1.0f, 0};
     depth.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
@@ -477,21 +492,6 @@ void vulkan::VulkanRenderer::transistionImageLayout(
     cmd.pipelineBarrier(pipelineStart, pipelineEnd, {}, {}, {}, barrier);
 }
 
-static vk::Format getDepthFormat(const vk::PhysicalDevice physicalDevice)
-{
-    constexpr std::array possibleFormats = {
-        vk::Format::eD32Sfloat,
-        vk::Format::eD32SfloatS8Uint,
-        vk::Format::eD24UnormS8Uint,
-    };
-    for (const vk::Format fmt : possibleFormats) {
-        auto props = physicalDevice.getFormatProperties(fmt);
-        if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
-            return fmt;
-    }
-    crash("No valid depth image format found");
-}
-
 void vulkan::VulkanRenderer::initBuffers()
 {
     vk::BufferCreateInfo bufferCreateInfo{};
@@ -527,6 +527,7 @@ void vulkan::VulkanRenderer::initBuffers()
     imageCreateInfo.format = swapchain.getFormat();
     imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransientAttachment
                             | vk::ImageUsageFlagBits::eColorAttachment;
+    // TODO ??? imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
     allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
     msaaImage = allocator.allocate(imageCreateInfo, allocInfo);
 
@@ -556,4 +557,234 @@ vulkan::Pipeline vulkan::VulkanRenderer::createComputePipeline() const
     return pipeline;
 }
 
+vulkan::VulkanRenderer::Frame::Frame(
+    const Context& ctx,
+    const vk::DescriptorPool descriptorPool,
+    const GpuAllocator& allocator,
+    const uint32_t maxDrawCount,
+    const uint32_t index,
+    const Buffer& globalUBO,
+    const vk::DeviceSize uboOffset,
+    DescriptorLayoutManager& descriptorLayoutManager
+)
+{
+    vk::CommandPoolCreateInfo createInfo{};
+    createInfo.queueFamilyIndex = ctx.queues.graphicsFamily;
+    createInfo.flags = vk::CommandPoolCreateFlagBits::eTransient;
+    pool = ctx.device.createCommandPool(createInfo);
+    vk::CommandBufferAllocateInfo cmdInfo{};
+    cmdInfo.commandPool = pool;
+    cmdInfo.level = vk::CommandBufferLevel::ePrimary;
+    cmdInfo.commandBufferCount = 1;
+    if (ctx.device.allocateCommandBuffers(&cmdInfo, &cmd) != vk::Result::eSuccess)
+        crash("Failed to allocate command bufferes");
+    fence = ctx.device.createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
+    renderingSemaphore = ctx.device.createSemaphore(vk::SemaphoreCreateInfo());
+    presentSemaphore = ctx.device.createSemaphore(vk::SemaphoreCreateInfo());
+
+    vk::BufferCreateInfo bufferInfo{};
+    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
+    bufferInfo.size = maxDrawCount * sizeof(DrawData);
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    drawData = allocator.allocate(bufferInfo, allocInfo);
+    bufferInfo.size = maxDrawCount * sizeof(glm::mat4);
+    allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocInfo.flags = 0;
+    culledMatrices = allocator.allocate(bufferInfo, allocInfo);
+    bufferInfo.usage |= vk::BufferUsageFlagBits::eIndirectBuffer;
+    bufferInfo.size = maxDrawCount * sizeof(vk::DrawIndexedIndirectCommand);
+    commandBuffer = allocator.allocate(bufferInfo, allocInfo);
+    bufferInfo.size = maxDrawCount * sizeof(uint32_t);
+    allocInfo.preferredFlags = 0;
+    countBuffer = allocator.allocate(bufferInfo, allocInfo);
+    bufferInfo.usage = vk::BufferUsageFlagBits::eStorageBuffer;
+    bufferInfo.size = maxDrawCount * sizeof(TextureIds);
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+    textureIndexBuffer = allocator.allocate(bufferInfo, allocInfo);
+
+    createDescriptorSets(ctx, descriptorPool, descriptorLayoutManager, maxDrawCount);
+    writeDescriptorsSets(ctx.device, index, maxDrawCount, globalUBO, uboOffset);
+}
+
+void vulkan::VulkanRenderer::Frame::createDescriptorSets(
+    const Context& ctx,
+    const vk::DescriptorPool descriptorPool,
+    DescriptorLayoutManager& descriptorLayoutManager,
+    const uint32_t maxDrawCount
+)
+{
+    SmallVector<vk::DescriptorSetLayout> setLayouts;
+    std::array<vk::DescriptorSetLayoutBinding, 6> layoutBindings{};
+    layoutBindings[0].binding = 0;
+    layoutBindings[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+    layoutBindings[1].binding = 1;
+    layoutBindings[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+    layoutBindings[2].binding = 2;
+    layoutBindings[2].descriptorType = vk::DescriptorType::eStorageBuffer;
+    layoutBindings[3].binding = 3;
+    layoutBindings[3].descriptorType = vk::DescriptorType::eUniformBuffer;
+    layoutBindings[4].binding = 4;
+    layoutBindings[4].descriptorType = vk::DescriptorType::eStorageBuffer;
+    layoutBindings[5].binding = 5;
+    layoutBindings[5].descriptorType = vk::DescriptorType::eStorageBuffer;
+
+    layoutBindings[5].descriptorCount = layoutBindings[4].descriptorCount = layoutBindings[3].descriptorCount
+        = layoutBindings[2].descriptorCount = layoutBindings[1].descriptorCount
+        = layoutBindings[0].descriptorCount = 1;
+    layoutBindings[5].stageFlags = layoutBindings[4].stageFlags = layoutBindings[3].stageFlags
+        = layoutBindings[2].stageFlags = layoutBindings[1].stageFlags = layoutBindings[0].stageFlags
+        = vk::ShaderStageFlagBits::eCompute;
+    setLayouts.pushBack(descriptorLayoutManager.createLayout(layoutBindings));
+    std::array globalBinding = {vk::DescriptorSetLayoutBinding{
+        0,
+        vk::DescriptorType::eUniformBuffer,
+        1,
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment
+    }};
+    setLayouts.pushBack(descriptorLayoutManager.createLayout(globalBinding));
+    std::array<vk::DescriptorSetLayoutBinding, 3> frameBindings{};
+    frameBindings[0].binding = 0;
+    frameBindings[0].descriptorCount = 1;
+    frameBindings[0].descriptorType = vk::DescriptorType::eStorageBuffer;
+    frameBindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
+    frameBindings[1].binding = 1;
+    frameBindings[1].descriptorCount = 1;
+    frameBindings[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+    frameBindings[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
+    textureBinding = frameBindings[2].binding = 2;
+    frameBindings[2].descriptorCount = maxDrawCount;
+    frameBindings[2].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    frameBindings[2].stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+    std::array bindlessIndices = {2ul};
+
+    setLayouts.pushBack(descriptorLayoutManager.createBindlessLayout(
+        frameBindings,
+        bindlessIndices,
+        vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool
+    ));
+
+    vk::DescriptorSetVariableDescriptorCountAllocateInfo varAllocInfo{};
+    varAllocInfo.descriptorSetCount = frameBindings.size();
+    const std::array counts = {0u, 0u, maxDrawCount};
+    varAllocInfo.pDescriptorCounts = counts.data();
+
+    vk::DescriptorSetAllocateInfo allocInfo{};
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = setLayouts.size();
+    allocInfo.pSetLayouts = setLayouts.data();
+    allocInfo.pNext = &varAllocInfo;
+    const auto sets = ctx.device.allocateDescriptorSets<FrameAllocator<vk::DescriptorSet>>(allocInfo);
+    computeSet = sets[0];
+    globalDescriptorSet = sets[1];
+    frameSet = sets[2];
+}
+
+void vulkan::VulkanRenderer::Frame::writeDescriptorsSets(
+    const vk::Device device,
+    const uint32_t index,
+    const uint32_t maxDrawCount,
+    const Buffer& globalUBO,
+    const vk::DeviceSize uboOffset
+) const
+{
+    vk::DescriptorBufferInfo globalUboInfo{};
+    globalUboInfo.buffer = globalUBO;
+    globalUboInfo.offset = index * uboOffset;
+    globalUboInfo.range = sizeof(UBOData);
+
+    std::array<vk::WriteDescriptorSet, 9> writes{};
+    writes[0].dstSet = globalDescriptorSet;
+    writes[0].dstArrayElement = 0;
+    writes[0].dstBinding = 0;
+    writes[0].pBufferInfo = &globalUboInfo;
+    writes[0].descriptorCount = 1;
+    writes[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+
+    vk::DescriptorBufferInfo drawBufInfo{};
+    drawBufInfo.buffer = drawData;
+    drawBufInfo.offset = 0;
+    drawBufInfo.range = maxDrawCount * sizeof(DrawData);
+    writes[1].dstSet = computeSet;
+    writes[1].dstArrayElement = 0;
+    writes[1].dstBinding = 4;
+    writes[1].pBufferInfo = &drawBufInfo;
+    writes[1].descriptorCount = 1;
+    writes[1].descriptorType = vk::DescriptorType::eStorageBuffer;
+
+    vk::DescriptorBufferInfo culledMatrixInfo{};
+    culledMatrixInfo.buffer = culledMatrices;
+    culledMatrixInfo.offset = 0;
+    culledMatrixInfo.range = maxDrawCount * sizeof(glm::mat4);
+    writes[2].dstSet = computeSet;
+    writes[2].dstArrayElement = 0;
+    writes[2].dstBinding = 0;
+    writes[2].pBufferInfo = &culledMatrixInfo;
+    writes[2].descriptorCount = 1;
+    writes[2].descriptorType = vk::DescriptorType::eStorageBuffer;
+
+    vk::DescriptorBufferInfo commandInfo{};
+    commandInfo.buffer = commandBuffer;
+    commandInfo.offset = 0;
+    commandInfo.range = maxDrawCount * sizeof(vk::DrawIndexedIndirectCommand);
+    writes[3].dstSet = computeSet;
+    writes[3].dstArrayElement = 0;
+    writes[3].dstBinding = 1;
+    writes[3].pBufferInfo = &commandInfo;
+    writes[3].descriptorCount = 1;
+    writes[3].descriptorType = vk::DescriptorType::eStorageBuffer;
+
+    vk::DescriptorBufferInfo countInfo{};
+    countInfo.buffer = countBuffer;
+    countInfo.offset = 0;
+    countInfo.range = maxDrawCount * sizeof(uint32_t);
+    writes[4].dstSet = computeSet;
+    writes[4].dstArrayElement = 0;
+    writes[4].dstBinding = 2;
+    writes[4].pBufferInfo = &countInfo;
+    writes[4].descriptorCount = 1;
+    writes[4].descriptorType = vk::DescriptorType::eStorageBuffer;
+    writes[5].dstSet = computeSet;
+    writes[5].dstArrayElement = 0;
+    writes[5].dstBinding = 3;
+    writes[5].pBufferInfo = &globalUboInfo;
+    writes[5].descriptorCount = 1;
+    writes[5].descriptorType = vk::DescriptorType::eUniformBuffer;
+
+    vk::DescriptorBufferInfo textureIndexBuffInfo{};
+    textureIndexBuffInfo.buffer = textureIndexBuffer;
+    textureIndexBuffInfo.offset = 0;
+    textureIndexBuffInfo.range = maxDrawCount * sizeof(TextureIds);
+    writes[6].dstSet = computeSet;
+    writes[6].dstArrayElement = 0;
+    writes[6].dstBinding = 5;
+    writes[6].pBufferInfo = &textureIndexBuffInfo;
+    writes[6].descriptorCount = 1;
+    writes[6].descriptorType = vk::DescriptorType::eStorageBuffer;
+
+    vk::DescriptorBufferInfo frameInfo{};
+    frameInfo.range = maxDrawCount * sizeof(glm::mat4);
+    frameInfo.offset = 0;
+    frameInfo.buffer = culledMatrices;
+    writes[7].dstSet = frameSet;
+    writes[7].dstArrayElement = 0;
+    writes[7].dstBinding = 0;
+    writes[7].pBufferInfo = &frameInfo;
+    writes[7].descriptorCount = 1;
+    writes[7].descriptorType = vk::DescriptorType::eStorageBuffer;
+    writes[8].dstSet = frameSet;
+    writes[8].dstArrayElement = 0;
+    writes[8].dstBinding = 1;
+    writes[8].pBufferInfo = &textureIndexBuffInfo;
+    writes[8].descriptorCount = 1;
+    writes[8].descriptorType = vk::DescriptorType::eStorageBuffer;
+
+    device.updateDescriptorSets(writes, {});
+}
 }// namespace dragonfire

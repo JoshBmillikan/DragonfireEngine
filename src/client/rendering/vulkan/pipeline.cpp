@@ -91,8 +91,14 @@ vk::PipelineCache loadCache(const char* path, const vk::Device device)
     }
 }
 
-PipelineFactory::PipelineFactory(const Context& ctx, DescriptorLayoutManager* descriptorLayoutManager)
-    : descriptorLayoutManager(descriptorLayoutManager), device(ctx.device)
+PipelineFactory::PipelineFactory(
+    const Context& ctx,
+    DescriptorLayoutManager* descriptorLayoutManager,
+    const vk::Format depthFormat,
+    const vk::Format swapchainFormat
+)
+    : descriptorLayoutManager(descriptorLayoutManager), device(ctx.device), depthFormat(depthFormat),
+      swapchainFormat(swapchainFormat)
 {
     cache = loadCache(CACHE_PATH, ctx.device);
 #ifdef SHADER_OUTPUT_PATH
@@ -280,6 +286,12 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
         crash("not yet implemented");// TODO
     }
 
+
+    vk::PipelineRenderingCreateInfo renderingCreateInfo{};
+    renderingCreateInfo.colorAttachmentCount = 1;
+    renderingCreateInfo.depthAttachmentFormat = depthFormat;
+    renderingCreateInfo.pColorAttachmentFormats = &swapchainFormat;
+
     const vk::PipelineLayout pipelineLayout = createLayout(info);
     vk::GraphicsPipelineCreateInfo createInfo{};
     createInfo.renderPass = nullptr;
@@ -294,6 +306,7 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
     createInfo.pRasterizationState = &info.rasterState;
     createInfo.pVertexInputState = &vertexInput;
     createInfo.layout = pipelineLayout;
+    createInfo.pNext = &renderingCreateInfo;
 
     auto [result, pipeline] = device.createGraphicsPipeline(cache, createInfo);
     if (result != vk::Result::eSuccess)
@@ -393,7 +406,7 @@ static SmallVector<vk::DescriptorSetLayout> createSetLayouts(
         if (bindings.empty())
             continue;
         sortDedupBindings(bindings);
-        vk::DescriptorSetLayout layout = descriptorLayoutManager->createLayout(bindings);
+        const vk::DescriptorSetLayout layout = descriptorLayoutManager->createLayout(bindings);
         out.pushBack(layout);
     }
     return out;

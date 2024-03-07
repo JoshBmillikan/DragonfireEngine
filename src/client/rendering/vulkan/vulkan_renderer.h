@@ -40,7 +40,30 @@ private:
         vk::Fence fence;
         uint32_t textureBinding = 0;
         Frame() = default;
-        Frame(const Context& ctx, const GpuAllocator& allocator, uint32_t maxDrawCount);
+        Frame(
+            const Context& ctx,
+            vk::DescriptorPool descriptorPool,
+            const GpuAllocator& allocator,
+            uint32_t maxDrawCount,
+            uint32_t index,
+            const Buffer& globalUBO,
+            vk::DeviceSize uboOffset,
+            DescriptorLayoutManager& descriptorLayoutManager
+        );
+        void createDescriptorSets(
+            const Context& ctx,
+            vk::DescriptorPool descriptorPool,
+            DescriptorLayoutManager& descriptorLayoutManager,
+            uint32_t maxDrawCount
+        );
+
+        void writeDescriptorsSets(
+            vk::Device device,
+            uint32_t index,
+            uint32_t maxDrawCount,
+            const Buffer& globalUBO,
+            vk::DeviceSize uboOffset
+        ) const;
     };
 
     Context context;
@@ -56,6 +79,7 @@ private:
     vk::DeviceSize uboOffset = 0;
     Pipeline cullPipeline;
     std::unique_ptr<TextureRegistry> textureRegistry;
+    vk::DescriptorPool descriptorPool;
 
     struct {
         std::mutex mutex;

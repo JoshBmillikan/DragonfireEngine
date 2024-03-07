@@ -24,6 +24,8 @@ public:
     {
     }
 
+    virtual ~Material() = default;
+
     [[nodiscard]] const TextureIds& getTextures() const { return textureIds; }
 
     [[nodiscard]] uint32_t getPipelineId() const { return pipelineId; }

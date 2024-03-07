@@ -65,6 +65,8 @@ public:
 
     ~Image() override { destroy(); }
 
+    operator vk::Image() const { return image; }
+
     void destroy() noexcept;
     Image(const Image& other) = delete;
     Image(Image&& other) noexcept;

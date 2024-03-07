@@ -19,6 +19,11 @@ public:
         std::span<vk::DescriptorSetLayoutBinding> bindings,
         vk::DescriptorSetLayoutCreateFlags flags = {}
     );
+    vk::DescriptorSetLayout createBindlessLayout(
+        std::span<vk::DescriptorSetLayoutBinding> bindings,
+        std::span<size_t> bindlessIndices,
+        vk::DescriptorSetLayoutCreateFlags flags = {}
+    );
 
     void destroy();
 

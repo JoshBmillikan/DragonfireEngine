@@ -4,6 +4,9 @@
 
 #define VULKAN_HPP_USE_REFLECT
 #include "context.h"
+
+#include "core/config.h"
+
 #include <SDL_vulkan.h>
 #include <core/crash.h>
 #include <spdlog/spdlog.h>
@@ -494,6 +497,63 @@ static vk::Device createDevice(
     return device;
 }
 
+static vk::SampleCountFlagBits getMsaaSamples(const vk::PhysicalDeviceLimits& limits, spdlog::logger* logger)
+{
+    int64_t mode = Config::get().getInt("graphics.msaa_samples").value_or(8);
+    vk::SampleCountFlagBits samples;
+    const vk::SampleCountFlags validFlags = limits.framebufferColorSampleCounts
+                                            & limits.framebufferDepthSampleCounts;
+    switch (mode) {
+        case 64:
+            if (validFlags & vk::SampleCountFlagBits::e64) {
+                samples = vk::SampleCountFlagBits::e64;
+                logger->info("Using Anti-Aliasing mode: MSAA 64x");
+                break;
+            }
+            logger->warn("MSAA 64 not available, trying to fall back to MSAA 32");
+        case 32:
+            if (validFlags & vk::SampleCountFlagBits::e32) {
+                samples = vk::SampleCountFlagBits::e32;
+                logger->info("Using Anti-Aliasing mode: MSAA 32x");
+                break;
+            }
+            logger->warn("MSAA 32 not available, trying to fall back to MSAA 16");
+        case 16:
+            if (validFlags & vk::SampleCountFlagBits::e32) {
+                samples = vk::SampleCountFlagBits::e16;
+                logger->info("Using Anti-Aliasing mode: MSAA 16x");
+                break;
+            }
+            logger->warn("MSAA 16 not available, trying to fall back to MSAA 8");
+        case 8:
+            if (validFlags & vk::SampleCountFlagBits::e8) {
+                samples = vk::SampleCountFlagBits::e8;
+                logger->info("Using Anti-Aliasing mode: MSAA 8x");
+                break;
+            }
+            logger->warn("MSAA 8 not available, trying to fall back to MSAA 4");
+        case 4:
+            if (validFlags & vk::SampleCountFlagBits::e4) {
+                samples = vk::SampleCountFlagBits::e4;
+                logger->info("Using Anti-Aliasing mode: MSAA 4x");
+                break;
+            }
+            logger->warn("MSAA 4 not available, trying to fall back to MSAA 2");
+        case 2:
+            if (validFlags & vk::SampleCountFlagBits::e2) {
+                samples = vk::SampleCountFlagBits::e2;
+                logger->info("Using Anti-Aliasing mode: MSAA 2x");
+                break;
+            }
+            logger->warn("MSAA 2 not available, anti-aliasing will be disabled");
+        case 1: samples = vk::SampleCountFlagBits::e1; break;
+        default:
+            logger->error("Invalid MSAA mode \"{}\", multisampling disabled", mode);
+            samples = vk::SampleCountFlagBits::e1;
+    }
+    return samples;
+}
+
 Context::Context(
     SDL_Window* window,
     const std::span<const char*> enabledExtensions,
@@ -514,6 +574,7 @@ Context::Context(
     physicalDevice
         = getPhysicalDevice(instance, surface, requiredFeatures, enabledExtensions, deviceProperties.get());
     device = createDevice(physicalDevice, enabledExtensions, requiredFeatures, surface, queues);
+    sampleCount = getMsaaSamples(deviceProperties->limits, logger.get());
 
     logger->info("Vulkan context initialized");
 }

@@ -25,6 +25,13 @@ public:
         }
     }
 
+    explicit SmallVector(const size_t count) : SmallVector()
+    {
+        reserve(count);
+        for (size_t i = 0; i < count; i++)
+            emplace();
+    }
+
     [[nodiscard]] size_t size() const noexcept { return std::distance(start, endPtr); }
 
     [[nodiscard]] bool isSpilled() const noexcept

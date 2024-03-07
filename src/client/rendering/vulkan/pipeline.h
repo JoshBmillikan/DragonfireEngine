@@ -64,7 +64,12 @@ struct PipelineInfo {
 
 class PipelineFactory {
 public:
-    PipelineFactory(const struct Context& ctx, DescriptorLayoutManager* descriptorLayoutManager);
+    PipelineFactory(
+        const struct Context& ctx,
+        DescriptorLayoutManager* descriptorLayoutManager,
+        vk::Format depthFormat,
+        vk::Format swapchainFormat
+    );
 
     Pipeline getOrCreate(const PipelineInfo& info);
     std::optional<Pipeline> getPipeline(const PipelineInfo& info);
@@ -90,6 +95,7 @@ private:
     DescriptorLayoutManager* descriptorLayoutManager = nullptr;
     vk::Device device;
     uint32_t pipelineCount = 0;
+    vk::Format depthFormat{}, swapchainFormat{};
 
     Pipeline createPipeline(const PipelineInfo& info);
     void loadShaders(const char* dir = SHADER_DIR);
