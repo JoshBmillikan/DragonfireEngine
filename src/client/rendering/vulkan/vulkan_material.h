@@ -8,13 +8,16 @@
 
 namespace dragonfire::vulkan {
 
-struct VulkanMaterial : Material {
+struct VulkanMaterial final : Material {
     Pipeline pipeline;
 
     VulkanMaterial(const TextureIds& textureIds, const Pipeline& pipeline)
         : Material(textureIds, pipeline.getId()), pipeline(pipeline)
     {
     }
+
+    ~VulkanMaterial() override = default;
+    void foo() override;
 };
 
 }// namespace dragonfire::vulkan

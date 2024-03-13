@@ -168,7 +168,7 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
         );
     }
 
-    auto indices
+    const auto indices
         = reinterpret_cast<uint32_t*>(static_cast<unsigned char*>(ptr) + sizeof(Vertex) * vertexCount);
     size_t indexCount = 0;
     if (primitive.indicesAccessor.has_value()) {

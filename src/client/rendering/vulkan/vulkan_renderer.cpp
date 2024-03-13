@@ -126,7 +126,7 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
     DrawData* drawData = static_cast<DrawData*>(frame.drawData.getInfo().pMappedData);
     for (auto& [material, draws] : models) {
         const auto mat
-            = static_cast<const VulkanMaterial*>(material);// NOLINT(*-pro-type-static-cast-downcast)
+            = dynamic_cast<const VulkanMaterial*>(material);
         for (auto& draw : draws) {
             if (drawCount >= maxDrawCount) {
                 logger->error("Max draw count exceeded, some models may not be drawn");

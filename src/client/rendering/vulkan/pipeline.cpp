@@ -39,6 +39,13 @@ void Pipeline::destroy(const vk::Device device)
 {
     device.destroy(layout);
     device.destroy(pipeline);
+    if (pipeline) {
+        SPDLOG_LOGGER_DEBUG(
+            spdlog::get("Rendering"),
+            "Destroyed pipeline {:x}",
+            reinterpret_cast<uintptr_t>(VkPipeline(pipeline))
+        );
+    }
     pipeline = nullptr;
     layout = nullptr;
 }
@@ -311,6 +318,11 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
     auto [result, pipeline] = device.createGraphicsPipeline(cache, createInfo);
     if (result != vk::Result::eSuccess)
         throw std::runtime_error("Failed to create graphics pipeline");
+    SPDLOG_LOGGER_DEBUG(
+        spdlog::get("Rendering"),
+        "Created graphics pipline {:x}",
+        reinterpret_cast<uintptr_t>(VkPipeline(pipeline))
+    );
     std::unique_lock lock(mutex);
     return pipelines[info]
            = Pipeline(pipeline, vk::PipelineBindPoint::eGraphics, pipelineLayout, pipelineCount++);

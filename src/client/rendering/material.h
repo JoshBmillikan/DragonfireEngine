@@ -24,6 +24,8 @@ public:
     {
     }
 
+    virtual void foo() = 0;
+
     virtual ~Material() = default;
 
     [[nodiscard]] const TextureIds& getTextures() const { return textureIds; }
