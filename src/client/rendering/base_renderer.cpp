@@ -66,6 +66,7 @@ void BaseRenderer::addDrawable(const Model* model, const Transform& transform)
 {
     for (size_t i = 0; i < model->primitiveCount(); i++) {
         const Model::Primitive& primitive = (*model)[i];
+        assert(primitive.material);
         glm::mat4 base = transform.toMatrix();
         drawables[primitive.material]
             .emplace_back(primitive.mesh, base * primitive.transform, primitive.bounds);

@@ -93,22 +93,49 @@ public:
     }
 
     SmallVector(const SmallVector& other)
-        : start(other.start), endPtr(other.endPtr), allocator(other.allocator)
     {
+        if (isSpilled()) {
+            start = other.start;
+            endPtr = other.endPtr;
+        }
+        else {
+            clear();
+            for (T* ptr = other.start; ptr != other.endPtr; ptr++)
+                pushBack(*ptr);
+        }
+        allocator = other.allocator;
     }
 
     SmallVector(SmallVector&& other) noexcept
-        : start(other.start), endPtr(other.endPtr), allocator(std::move(other.allocator))
     {
-        other.start = nullptr;
+        if (this == &other)
+            return;
+        if (isSpilled()) {
+            start = other.start;
+            endPtr = other.endPtr;
+        }
+        else {
+            clear();
+            for (T* ptr = other.start; ptr != other.endPtr; ptr++)
+                emplace(std::move(*ptr));
+        }
+        other.endPtr = other.start = nullptr;
+        allocator = std::move(other.allocator);
     }
 
     SmallVector& operator=(const SmallVector& other)
     {
         if (this == &other)
             return *this;
-        start = other.start;
-        endPtr = other.endPtr;
+        if (isSpilled()) {
+            start = other.start;
+            endPtr = other.endPtr;
+        }
+        else {
+            clear();
+            for (T* ptr = other.start; ptr != other.endPtr; ptr++)
+                pushBack(*ptr);
+        }
         allocator = other.allocator;
         return *this;
     }
@@ -119,9 +146,16 @@ public:
     {
         if (this == &other)
             return *this;
-        start = other.start;
-        other.start = nullptr;
-        endPtr = other.endPtr;
+        if (isSpilled()) {
+            start = other.start;
+            endPtr = other.endPtr;
+        }
+        else {
+            clear();
+            for (T* ptr = other.start; ptr != other.endPtr; ptr++)
+                emplace(std::move(*ptr));
+        }
+        other.endPtr = other.start = nullptr;
         allocator = std::move(other.allocator);
         return *this;
     }
