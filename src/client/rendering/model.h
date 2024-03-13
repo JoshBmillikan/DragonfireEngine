@@ -19,7 +19,8 @@ public:
     Model() = default;
 
     Model(std::string name) : name(std::move(name)) {}
-    virtual ~Model();
+
+    ~Model();
 
     class Loader {
     public:
@@ -31,6 +32,21 @@ public:
     protected:
         bool optimizeMeshes = true;
     };
+
+    Model(const Model& other) = delete;
+
+    Model(Model&& other) noexcept : name(std::move(other.name)), primitives(std::move(other.primitives)) {}
+
+    Model& operator=(const Model& other) = delete;
+
+    Model& operator=(Model&& other) noexcept
+    {
+        if (this == &other)
+            return *this;
+        name = std::move(other.name);
+        primitives = std::move(other.primitives);
+        return *this;
+    }
 
     void addPrimitive(
         Mesh mesh,
