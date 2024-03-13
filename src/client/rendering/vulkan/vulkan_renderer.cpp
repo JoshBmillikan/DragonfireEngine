@@ -74,7 +74,8 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
         context,
         &descriptorLayoutManager,
         getDepthFormat(context.physicalDevice),
-        swapchain.getFormat()
+        swapchain.getFormat(),
+        maxDrawCount
     );
     textureRegistry = std::make_unique<TextureRegistry>(allocator);
 

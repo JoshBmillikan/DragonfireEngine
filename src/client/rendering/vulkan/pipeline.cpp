@@ -102,10 +102,11 @@ PipelineFactory::PipelineFactory(
     const Context& ctx,
     DescriptorLayoutManager* descriptorLayoutManager,
     const vk::Format depthFormat,
-    const vk::Format swapchainFormat
+    const vk::Format swapchainFormat,
+    const uint32_t descriptorCount
 )
     : descriptorLayoutManager(descriptorLayoutManager), device(ctx.device), depthFormat(depthFormat),
-      swapchainFormat(swapchainFormat)
+      swapchainFormat(swapchainFormat), descriptorCount(descriptorCount)
 {
     cache = loadCache(CACHE_PATH, ctx.device);
 #ifdef SHADER_OUTPUT_PATH
@@ -361,9 +362,10 @@ static void reflectPushConstantData(
     }
 }
 
-static void reflectSetLayoutBindings(
+static SmallVector<size_t> reflectSetLayoutBindings(
     const spv_reflect::ShaderModule* reflect,
-    ankerl::unordered_dense::map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>>& out
+    ankerl::unordered_dense::map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>>& out,
+    const uint32_t descriptorCount
 )
 {
     uint32_t setCount;
@@ -373,19 +375,29 @@ static void reflectSetLayoutBindings(
     sets = static_cast<SpvReflectDescriptorSet**>(alloca(sizeof(SpvReflectDescriptorSet*) * setCount));
     if (reflect->EnumerateDescriptorSets(&setCount, sets) != SPV_REFLECT_RESULT_SUCCESS)
         throw std::runtime_error("Failed to reflect descriptor sets");
-
+    SmallVector<size_t> bindlessIndices;
     for (uint32_t i = 0; i < setCount; i++) {
         auto& bindings = out[i];
         bindings.reserve(sets[i]->binding_count);
         for (uint32_t j = 0; j < sets[i]->binding_count; j++) {
             const SpvReflectDescriptorBinding* binding = sets[i]->bindings[j];
             auto& b = bindings.emplace_back();
-            b.binding = binding->binding;
             b.descriptorCount = binding->count;
+            for (uint32_t k = 0; k < binding->array.dims_count; k++) {
+                const uint32_t dims = binding->array.dims[k];
+                if (dims > 0)
+                    b.descriptorCount += dims;
+                else {
+                    b.descriptorCount += descriptorCount;
+                    bindlessIndices.pushBack(bindings.size() - 1);
+                }
+            }
+            b.binding = binding->binding;
             b.descriptorType = static_cast<vk::DescriptorType>(binding->descriptor_type);
             b.stageFlags = static_cast<vk::ShaderStageFlags>(reflect->GetShaderStage());
         }
     }
+    return bindlessIndices;
 }
 
 static void sortDedupBindings(std::vector<vk::DescriptorSetLayoutBinding>& bindings)
@@ -410,7 +422,8 @@ static void sortDedupBindings(std::vector<vk::DescriptorSetLayoutBinding>& bindi
 
 static SmallVector<vk::DescriptorSetLayout> createSetLayouts(
     ankerl::unordered_dense::map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>>& bindingMap,
-    DescriptorLayoutManager* descriptorLayoutManager
+    DescriptorLayoutManager* descriptorLayoutManager,
+    const std::span<size_t> bindlessIndices
 )
 {
     SmallVector<vk::DescriptorSetLayout> out;
@@ -418,7 +431,17 @@ static SmallVector<vk::DescriptorSetLayout> createSetLayouts(
         if (bindings.empty())
             continue;
         sortDedupBindings(bindings);
-        const vk::DescriptorSetLayout layout = descriptorLayoutManager->createLayout(bindings);
+        vk::DescriptorSetLayout layout;
+        if (bindlessIndices.empty()) {
+            layout = descriptorLayoutManager->createLayout(bindings);
+        }
+        else {
+            layout = descriptorLayoutManager->createBindlessLayout(
+                bindings,
+                bindlessIndices,
+                vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool
+            );
+        }
         out.pushBack(layout);
     }
     return out;
@@ -441,11 +464,12 @@ vk::PipelineLayout PipelineFactory::createLayout(const PipelineInfo& info) const
     vk::PipelineLayoutCreateInfo createInfo{};
     SmallVector<vk::PushConstantRange, 6> pushConstantRanges;
     ankerl::unordered_dense::map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> setBindings;
+    SmallVector<size_t> bindlessIndices;
     for (uint32_t i = 0; i < reflectCount; i++) {
         reflectPushConstantData(reflectData[i], pushConstantRanges);
-        reflectSetLayoutBindings(reflectData[i], setBindings);
+        bindlessIndices = reflectSetLayoutBindings(reflectData[i], setBindings, descriptorCount);
     }
-    auto setLayouts = createSetLayouts(setBindings, descriptorLayoutManager);
+    auto setLayouts = createSetLayouts(setBindings, descriptorLayoutManager, bindlessIndices);
     createInfo.pPushConstantRanges = pushConstantRanges.data();
     createInfo.pushConstantRangeCount = pushConstantRanges.size();
     createInfo.pSetLayouts = setLayouts.data();

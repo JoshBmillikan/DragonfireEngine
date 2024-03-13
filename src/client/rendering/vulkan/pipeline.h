@@ -68,7 +68,8 @@ public:
         const struct Context& ctx,
         DescriptorLayoutManager* descriptorLayoutManager,
         vk::Format depthFormat,
-        vk::Format swapchainFormat
+        vk::Format swapchainFormat,
+        uint32_t descriptorCount
     );
 
     Pipeline getOrCreate(const PipelineInfo& info);
@@ -96,6 +97,7 @@ private:
     vk::Device device;
     uint32_t pipelineCount = 0;
     vk::Format depthFormat{}, swapchainFormat{};
+    uint32_t descriptorCount = 0;
 
     Pipeline createPipeline(const PipelineInfo& info);
     void loadShaders(const char* dir = SHADER_DIR);
