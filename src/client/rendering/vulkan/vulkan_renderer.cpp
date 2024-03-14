@@ -177,6 +177,7 @@ void vulkan::VulkanRenderer::endFrame()
     {
         std::unique_lock lock(presentData.mutex);
         presentData.frame = &frame;
+        presentData.imageIndex = swapchain.getCurrentImageIndex();
     }
     presentData.condVar.notify_one();
     pipelineMap.clear();
@@ -445,7 +446,7 @@ void vulkan::VulkanRenderer::present(const std::stop_token& token)
         submitInfo.pSignalSemaphoreInfos = &signal;
         submitInfo.pWaitSemaphoreInfos = &wait;
 
-        context.queues.graphics.submit2(submitInfo);
+        context.queues.graphics.submit2(submitInfo, presentData.frame->fence);
 
         vk::PresentInfoKHR presentInfo{};
         vk::SwapchainKHR swapchainKhr = swapchain;

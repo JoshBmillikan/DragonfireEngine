@@ -22,7 +22,7 @@ void* frameAllocator::alloc(std::size_t size) noexcept
         void* ptr = &MEMORY[OFFSET];
         OFFSET += size;
         ASAN_UNPOISON_MEMORY_REGION(ptr, size);
-        SPDLOG_DEBUG("Allocated per-frame memory block of size {}", size);
+        SPDLOG_TRACE("Allocated per-frame memory block of size {}", size);
         return ptr;
     }
     spdlog::warn("Per-Frame memory pool exhausted");
@@ -41,11 +41,11 @@ bool frameAllocator::freeLast(void* ptr, std::size_t size) noexcept
     std::unique_lock lock(MUTEX);
     if (OFFSET < size)
         return false;
-    void* ptr2 = &MEMORY[OFFSET - size];
+    const void* ptr2 = &MEMORY[OFFSET - size];
     if (ptr == ptr2) {
         OFFSET -= size;
         ASAN_POISON_MEMORY_REGION(ptr2, size);
-        SPDLOG_DEBUG("Freed per-frame memory block of size {}", size);
+        SPDLOG_TRACE("Freed per-frame memory block of size {}", size);
         return true;
     }
     return false;
