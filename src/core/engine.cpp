@@ -22,6 +22,8 @@ using magic_enum::iostream_operators::operator>>;
 
 namespace dragonfire {
 
+Engine* Engine::INSTANCE = nullptr;
+
 static void initLogging(spdlog::level::level_enum level)
 {
     using namespace spdlog;
@@ -58,7 +60,7 @@ static void mountDir(const std::string& str)
         return;
     }
     const auto first = str.substr(0, delim);
-    const auto last = str.substr(delim+1);
+    const auto last = str.substr(delim + 1);
     if (PHYSFS_mount(first.c_str(), last.c_str(), 1) == 0)
         std::cerr << "Failed to mount directory \"" << first << '"'
                   << ", error: " << PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode()) << std::endl;
@@ -67,11 +69,14 @@ static void mountDir(const std::string& str)
 }
 
 Engine::Engine(
+    const bool remote,
     const int argc,
     char** argv,
     std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
 )
+    : remote(remote)
 {
+    INSTANCE = this;
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_HAPTIC | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
         crash("SDL init failed: {}", SDL_GetError());
     crashOnException([=] { File::init(argc, argv); });

@@ -22,7 +22,7 @@ static cxxopts::OptionAdder extraCommands(cxxopts::OptionAdder&& adder)
     );
 }
 
-App::App(const int argc, char** const argv) : Engine(argc, argv, extraCommands)
+App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCommands)
 {
     try {
         Config::get().loadJsonFile("config/config.json");
