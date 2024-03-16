@@ -44,7 +44,18 @@ public:
         return isSpilled() ? std::distance(start, inner.cap) : SMALL_SIZE;
     }
 
-    void clear() { endPtr = start; }
+    void clear()
+    {
+        if (start) {
+            const auto s = size();
+            for (size_t i = 0; i < s; i++) {
+                start[i].~T();
+            }
+            if (s > 0 && isSpilled())
+                allocator.deallocate(start, capacity());
+        }
+        endPtr = start;
+    }
 
     T* data() noexcept { return start; }
 
@@ -90,6 +101,13 @@ public:
                 return true;
         }
         return false;
+    }
+
+    void pop()
+    {
+        if(!empty())
+            --endPtr;
+        *endPtr.~T();
     }
 
     SmallVector(const SmallVector& other)

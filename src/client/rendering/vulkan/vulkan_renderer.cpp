@@ -126,8 +126,7 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
     const Frame& frame = getCurrentFrame();
     DrawData* drawData = static_cast<DrawData*>(frame.drawData.getInfo().pMappedData);
     for (auto& [material, draws] : models) {
-        const auto mat
-            = dynamic_cast<const VulkanMaterial*>(material);
+        const auto mat = dynamic_cast<const VulkanMaterial*>(material);
         for (auto& draw : draws) {
             if (drawCount >= maxDrawCount) {
                 logger->error("Max draw count exceeded, some models may not be drawn");
@@ -148,8 +147,8 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
             data.boundingSphere = draw.bounds;
             data.boundingSphere.w *= getMatrixScaleFactor(draw.transform);
             const Mesh* mesh = reinterpret_cast<Mesh*>(draw.mesh);
-            data.vertexOffset = mesh->vertexInfo.offset;
-            data.indexOffset = mesh->indexInfo.offset;
+            data.vertexOffset = mesh->vertexInfo.offset / sizeof(Vertex);
+            data.indexOffset = mesh->indexInfo.offset / sizeof(uint32_t);
             data.vertexCount = mesh->vertexCount;
             data.indexCount = mesh->indexCount;
             data.textureIndices = mat->getTextures();
@@ -398,6 +397,9 @@ void vulkan::VulkanRenderer::waitForLastFrame()
         retries++;
     } while (result != vk::Result::eSuccess);
     context.device.resetFences(frame.fence);
+    context.device.resetCommandPool(frame.pool);
+    constexpr vk::CommandBufferBeginInfo beginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
+    frame.cmd.begin(beginInfo);
 }
 
 void vulkan::VulkanRenderer::writeGlobalUBO(const Camera& camera) const

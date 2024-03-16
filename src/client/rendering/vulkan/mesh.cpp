@@ -122,12 +122,14 @@ std::pair<Mesh*, vk::Fence> MeshRegistry::uploadMesh(
 
     cmd.copyBuffer(stagingBuffer, vertexBuffer, vertexCopy);
 
-    vk::BufferCopy indexCopy;
-    indexCopy.size = indexSize;
-    indexCopy.srcOffset = indexOffset;
-    indexCopy.dstOffset = mesh->indexInfo.offset;
+    if (indexSize > 0) {
+        vk::BufferCopy indexCopy;
+        indexCopy.size = indexSize;
+        indexCopy.srcOffset = indexOffset;
+        indexCopy.dstOffset = mesh->indexInfo.offset;
 
-    cmd.copyBuffer(stagingBuffer, indexBuffer, indexCopy);
+        cmd.copyBuffer(stagingBuffer, indexBuffer, indexCopy);
+    }
 
     vk::SubmitInfo submitInfo{};
     submitInfo.pCommandBuffers = &cmd;

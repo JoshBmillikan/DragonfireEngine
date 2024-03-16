@@ -70,9 +70,7 @@ void App::mainLoop(const double deltaTime)
                 break;
         }
     }
-    Transform t{};
-    t.position.y -= 2;
-    t.position.x -= 2;
+    const Transform t = glm::vec3(4.0f, -2.0f, 0.0f);
     camera.lookAt(t.position);
     renderer->addDrawable(&model, t);
     renderer->render(camera);

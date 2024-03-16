@@ -319,7 +319,7 @@ Pipeline PipelineFactory::createPipeline(const PipelineInfo& info)
     auto [result, pipeline] = device.createGraphicsPipeline(cache, createInfo);
     if (result != vk::Result::eSuccess)
         throw std::runtime_error("Failed to create graphics pipeline");
-    SPDLOG_LOGGER_DEBUG(
+    SPDLOG_LOGGER_TRACE(
         spdlog::get("Rendering"),
         "Created graphics pipline {:x}",
         reinterpret_cast<uintptr_t>(VkPipeline(pipeline))

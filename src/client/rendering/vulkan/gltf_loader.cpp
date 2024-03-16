@@ -37,8 +37,9 @@ VulkanGltfLoader::VulkanGltfLoader(
     GpuAllocator& allocator,
     PipelineFactory* pipelineFactory
 )
-    : StagingBuffer(allocator, 4096, false, "mesh staging buffer"), meshRegistry(meshRegistry), textureRegistry(textureRegistry),
-      pipelineFactory(pipelineFactory), sampleCount(ctx.sampleCount), device(ctx.device)
+    : StagingBuffer(allocator, 4096, false, "mesh staging buffer"), meshRegistry(meshRegistry),
+      textureRegistry(textureRegistry), pipelineFactory(pipelineFactory), sampleCount(ctx.sampleCount),
+      device(ctx.device)
 {
 }
 
@@ -85,7 +86,12 @@ Model VulkanGltfLoader::load(const char* path)
                         device.destroy(fn);
                 }
             }
-            out.addPrimitive(reinterpret_cast<dragonfire::Mesh>(meshHandle), material, bounds);
+            out.addPrimitive(Model::Primitive{
+                reinterpret_cast<dragonfire::Mesh>(meshHandle),
+                material,
+                bounds,
+                glm::identity<glm::mat4>()
+            });
             primitiveId++;
         }
     }
@@ -173,11 +179,11 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
     size_t indexCount = 0;
     if (primitive.indicesAccessor.has_value()) {
         const auto& indicesAccessor = asset.accessors[primitive.indicesAccessor.value()];
-        fastgltf::copyFromAccessor<uint32_t>(asset, indicesAccessor, indices + indexCount);
+        fastgltf::copyFromAccessor<uint32_t>(asset, indicesAccessor, indices);
         indexCount += indicesAccessor.count;
     }
     if (optimizeMeshes)
-        optimizeMesh(vertices, vertexCount, indices, indexCount, ptr);
+        optimizeMesh(vertices, vertexCount, indexCount > 0 ? indices : nullptr, indexCount, ptr);
     flushStagingBuffer();
 
     const size_t vertexOffset = vertexCount * sizeof(Vertex);
@@ -188,7 +194,7 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
 
     auto [m, fence]
         = meshRegistry
-              .uploadMesh(name, getStagingBuffer(), vertexCount, indexCount, vertexOffset, indexOffset);
+              .uploadMesh(name, getStagingBuffer(), vertexCount, indexCount, vertexOffset, 0);
 
     return {m, bounds, fence};
 }
@@ -202,7 +208,6 @@ static ImageData loadImageData(const fastgltf::DataSource& dataSource, const fas
 {
     return std::visit(
         Overloaded{
-            [](auto) { return ImageData{}; },
             [&](const fastgltf::sources::BufferView& buffer) {
                 auto& view = asset.bufferViews[buffer.bufferViewIndex];
                 auto& buf = asset.buffers[view.bufferIndex];
@@ -246,6 +251,10 @@ static ImageData loadImageData(const fastgltf::DataSource& dataSource, const fas
                     4
                 ));
                 return data;
+            },
+            [](auto) {
+                crash("Invalid data source for texture image");
+                return ImageData{};
             }
         },
         dataSource
@@ -297,17 +306,16 @@ std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(cons
 
     const Pipeline pipeline = pipelineFactory->getOrCreate(pipelineInfo);
 
-    if (material.pbrData.baseColorTexture.has_value()) {
+
+    TextureIds textureIds{};
+    if (material.pbrData.baseColorTexture.has_value() && false) {
         auto& texture = asset.textures[material.pbrData.baseColorTexture.value().textureIndex];
         const auto& image = asset.images[texture.imageIndex.value()];
-        auto name = texture.name.empty() ? image.name : texture.name;
+        const auto name = texture.name.empty() ? image.name : texture.name;
         ImageData imageData = loadImageData(image.data, asset);
-        // todo textures
+        assert(imageData.data); // TODO fixme
+        textureIds.albedo = textureRegistry.getCreateTexture(name, std::move(imageData))->getId();
     }
-    const TextureIds textureIds{
-
-    };
-
     auto out = new VulkanMaterial(textureIds, pipeline);
 
     return {out, {}};
