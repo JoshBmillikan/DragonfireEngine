@@ -86,7 +86,7 @@ Engine::Engine(
             mountDir(opt);
     }
     try {
-        auto path = std::filesystem::current_path().append("assets");
+        const auto path = std::filesystem::current_path().append("assets");
         File::mount(path.c_str(), nullptr);
     }
     catch (const std::exception& e) {

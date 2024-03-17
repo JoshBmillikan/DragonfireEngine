@@ -35,18 +35,30 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
 
     renderer = std::make_unique<vulkan::VulkanRenderer>(cli["vulkan-validation"].as<bool>());
     auto loader = renderer->getModelLoader();
-    model = loader->load("assets/models/bunny.glb");
+    auto model = loader->load("assets/models/bunny.glb");
     loader.reset();
     SDL_Window* window = renderer->getWindow();
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
     camera = Camera(45.0f, float(w), float(h), 0.1f, 1000.0f);
     camera.view[3][3] += 3.0f;
+    world = std::make_unique<GameWorld>();
+    Transform t = glm::vec3(0.3f, -1.6f, -0.5f);
+    t.scale *= 6.0f;
+    camera.lookAt(t.position + glm::vec3(0.0f, 0.0f, -0.5f));
+    const auto& ecs = world->getECSWorld();
+    ecs.entity().set([&](Model& m, Transform& transform) {
+        m = std::move(model);
+        transform = t;
+    });
+    ecs.system<const Model, const Transform>().each([&](const Model& m, const Transform& transform) {
+        renderer->addDrawable(&m, transform);
+    });
 }
 
 App::~App()
 {
-    model = Model();
+    world.reset();
     renderer.reset();
     try {
         PHYSFS_mkdir("config");
@@ -71,8 +83,8 @@ void App::mainLoop(const double deltaTime)
     }
     Transform t = glm::vec3(0.3f, -1.6f, -0.5f);
     t.scale *= 6.0f;
-    camera.lookAt(t.position + glm::vec3(0.0f, 0.0f, -0.5f));
-    renderer->addDrawable(&model, t);
+    if (!world->getECSWorld().progress())
+        stop();
     renderer->render(camera);
 }
 

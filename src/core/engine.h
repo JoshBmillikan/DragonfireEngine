@@ -3,6 +3,9 @@
 //
 
 #pragma once
+#include "world/game_world.h"
+
+
 #include <cxxopts.hpp>
 #include <functional>
 
@@ -34,6 +37,7 @@ public:
 protected:
     virtual void mainLoop(double deltaTime) = 0;
     cxxopts::ParseResult cli;
+    std::unique_ptr<GameWorld> world;
 
 private:
     static Engine* INSTANCE;

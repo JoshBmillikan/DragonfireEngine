@@ -186,8 +186,8 @@ void vulkan::VulkanRenderer::endFrame()
 vulkan::VulkanRenderer::~VulkanRenderer()
 {
     presentThread.request_stop();
-    context.device.waitIdle();
     presentThread.join();
+    context.device.waitIdle();
     for (Frame& frame : frames) {
         context.device.destroy(frame.pool);
         context.device.destroy(frame.presentSemaphore);

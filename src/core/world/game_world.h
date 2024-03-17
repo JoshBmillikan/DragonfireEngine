@@ -11,7 +11,11 @@ namespace dragonfire {
 
 class GameWorld {
     flecs::world world;
-    JPH::PhysicsSystem physicsSystem;
+    std::unique_ptr<JPH::PhysicsSystem> physicsSystem;
+
+public:
+    explicit GameWorld(uint32_t maxBodies = 10240);
+    flecs::world& getECSWorld() { return world; }
 };
 
 }// namespace dragonfire
