@@ -3,10 +3,8 @@
 //
 
 #include "app.h"
-
 #include "core/config.h"
 #include "rendering/vulkan/vulkan_renderer.h"
-
 #include <SDL2/SDL.h>
 #include <physfs.h>
 #include <spdlog/spdlog.h>
@@ -42,7 +40,8 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     SDL_Window* window = renderer->getWindow();
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
-    camera = Camera(60.0f, float(w), float(h), 0.1f, 1000.0f);
+    camera = Camera(45.0f, float(w), float(h), 0.1f, 1000.0f);
+    camera.view[3][3] += 3.0f;
 }
 
 App::~App()
@@ -70,8 +69,9 @@ void App::mainLoop(const double deltaTime)
                 break;
         }
     }
-    const Transform t = glm::vec3(4.0f, -2.0f, 0.0f);
-    camera.lookAt(t.position);
+    Transform t = glm::vec3(0.3f, -1.6f, -0.5f);
+    t.scale *= 6.0f;
+    camera.lookAt(t.position + glm::vec3(0.0f, 0.0f, -0.5f));
     renderer->addDrawable(&model, t);
     renderer->render(camera);
 }

@@ -35,11 +35,12 @@ VulkanGltfLoader::VulkanGltfLoader(
     MeshRegistry& meshRegistry,
     TextureRegistry& textureRegistry,
     GpuAllocator& allocator,
-    PipelineFactory* pipelineFactory
+    PipelineFactory* pipelineFactory,
+    std::function<void(Texture*)>&& descriptorUpdateCallback
 )
     : StagingBuffer(allocator, 4096, false, "mesh staging buffer"), meshRegistry(meshRegistry),
       textureRegistry(textureRegistry), pipelineFactory(pipelineFactory), sampleCount(ctx.sampleCount),
-      device(ctx.device)
+      device(ctx.device), descriptorUpdateCallback(descriptorUpdateCallback)
 {
 }
 
@@ -193,8 +194,7 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
     const glm::vec4 bounds = computeBounds(vertices, vertexCount);
 
     auto [m, fence]
-        = meshRegistry
-              .uploadMesh(name, getStagingBuffer(), vertexCount, indexCount, vertexOffset, 0);
+        = meshRegistry.uploadMesh(name, getStagingBuffer(), vertexCount, indexCount, vertexOffset, 0);
 
     return {m, bounds, fence};
 }
@@ -204,7 +204,12 @@ struct Overloaded : Ts... {
     using Ts::operator()...;
 };
 
-static ImageData loadImageData(const fastgltf::DataSource& dataSource, const fastgltf::Asset& asset)
+static ImageData loadImageData(
+    const fastgltf::DataSource& dataSource,
+    const fastgltf::Asset& asset,
+    size_t byteOffset = 0,
+    size_t byteLen = 0
+)
 {
     return std::visit(
         Overloaded{
@@ -212,7 +217,7 @@ static ImageData loadImageData(const fastgltf::DataSource& dataSource, const fas
                 auto& view = asset.bufferViews[buffer.bufferViewIndex];
                 auto& buf = asset.buffers[view.bufferIndex];
                 assert(!std::holds_alternative<fastgltf::sources::BufferView>(buf.data));
-                return loadImageData(buf.data, asset);
+                return loadImageData(buf.data, asset, view.byteOffset, view.byteLength);
             },
             [](const fastgltf::sources::URI& uri) {
                 const auto s = TempString(uri.uri.path());
@@ -224,6 +229,8 @@ static ImageData loadImageData(const fastgltf::DataSource& dataSource, const fas
                 data.setData(
                     stbi_load_from_memory(bytes.data(), int(data.len), &data.x, &data.y, &data.channels, 4)
                 );
+                if (data.data == nullptr)
+                    throw FormattedError("Failed to load texture image, reason: {}", stbi_failure_reason());
                 return data;
             },
             [](const fastgltf::sources::Vector& vector) {
@@ -237,19 +244,23 @@ static ImageData loadImageData(const fastgltf::DataSource& dataSource, const fas
                     &data.channels,
                     4
                 ));
+                if (data.data == nullptr)
+                    throw FormattedError("Failed to load texture image, reason: {}", stbi_failure_reason());
                 return data;
             },
-            [](const fastgltf::sources::ByteView& bytes) {
+            [byteOffset, byteLen](const fastgltf::sources::ByteView& bytes) {
                 ImageData data{};
-                data.len = bytes.bytes.size_bytes();
+                data.len = byteLen > 0 ? byteLen : bytes.bytes.size_bytes();
                 data.setData(stbi_load_from_memory(
-                    reinterpret_cast<const uint8_t*>(bytes.bytes.data()),
+                    reinterpret_cast<const uint8_t*>(bytes.bytes.data() + byteOffset),
                     int(data.len),
                     &data.x,
                     &data.y,
                     &data.channels,
                     4
                 ));
+                if (data.data == nullptr)
+                    throw FormattedError("Failed to load texture image, reason: {}", stbi_failure_reason());
                 return data;
             },
             [](auto) {
@@ -269,7 +280,8 @@ static RE2 TESS_REGEX("teseval-([a-zA-Z_0-9]+).*tesctrl=(a-zA-Z_0-9]+)", RE2::Qu
 std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(const fastgltf::Material& material
 )
 {
-    PipelineInfo pipelineInfo;
+    PipelineInfo pipelineInfo{};
+    pipelineInfo.enableColorBlend = false;
     pipelineInfo.sampleCount = sampleCount;
     pipelineInfo.enableMultisampling = sampleCount != vk::SampleCountFlagBits::e1;
     pipelineInfo.topology = vk::PrimitiveTopology::eTriangleList;
@@ -281,6 +293,8 @@ std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(cons
 
     pipelineInfo.depthState.depthWriteEnable = pipelineInfo.depthState.depthTestEnable = true;
     pipelineInfo.depthState.depthCompareOp = vk::CompareOp::eLessOrEqual;
+    pipelineInfo.depthState.depthBoundsTestEnable = false;
+    pipelineInfo.depthState.stencilTestEnable = false;
     pipelineInfo.depthState.minDepthBounds = 0.0f;
     pipelineInfo.depthState.maxDepthBounds = 1.0f;
 
@@ -308,13 +322,15 @@ std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(cons
 
 
     TextureIds textureIds{};
-    if (material.pbrData.baseColorTexture.has_value() && false) {
+    if (material.pbrData.baseColorTexture.has_value()) {
         auto& texture = asset.textures[material.pbrData.baseColorTexture.value().textureIndex];
         const auto& image = asset.images[texture.imageIndex.value()];
         const auto name = texture.name.empty() ? image.name : texture.name;
         ImageData imageData = loadImageData(image.data, asset);
-        assert(imageData.data); // TODO fixme
-        textureIds.albedo = textureRegistry.getCreateTexture(name, std::move(imageData))->getId();
+        assert(imageData.data);// TODO fixme
+        Texture* t = textureRegistry.getCreateTexture(name, std::move(imageData));
+        descriptorUpdateCallback(t);
+        textureIds.albedo = t->getId();
     }
     auto out = new VulkanMaterial(textureIds, pipeline);
 

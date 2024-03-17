@@ -12,8 +12,7 @@ namespace dragonfire {
 struct Camera {
     glm::mat4 perspective{};
     glm::mat4 orthograhpic{};
-    glm::vec3 position{};
-    glm::quat rotation = glm::identity<glm::quat>();
+    glm::mat4 view = glm::identity<glm::mat4>();
 
     Camera(float fov, float width, float height, float zNear, float zFar);
     Camera() = default;
@@ -28,7 +27,8 @@ struct Camera {
 
     [[nodiscard]] glm::mat4 getViewMatrix() const noexcept
     {
-        return glm::translate(glm::identity<glm::mat4>(), position) * toMat4(rotation);
+        //return glm::translate(glm::identity<glm::mat4>(), position) * toMat4(rotation);
+        return view;
     }
 
 private:

@@ -10,7 +10,9 @@
 #include "pipeline.h"
 #include "staging_buffer.h"
 #include "texture.h"
+
 #include <fastgltf/parser.hpp>
+#include <functional>
 
 namespace dragonfire::vulkan {
 
@@ -21,7 +23,8 @@ public:
         MeshRegistry& meshRegistry,
         TextureRegistry& textureRegistry,
         GpuAllocator& allocator,
-        PipelineFactory* pipelineFactory
+        PipelineFactory* pipelineFactory,
+        std::function<void(Texture*)>&& descriptorUpdateCallback
     );
     ~VulkanGltfLoader() override = default;
 
@@ -40,6 +43,7 @@ private:
     std::vector<uint8_t> data;
     vk::SampleCountFlagBits sampleCount;
     vk::Device device;
+    std::function<void(Texture*)> descriptorUpdateCallback;
 
     std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> loadPrimitive(
         const fastgltf::Primitive& primitive,

@@ -77,7 +77,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
         swapchain.getFormat(),
         maxDrawCount
     );
-    textureRegistry = std::make_unique<TextureRegistry>(allocator);
+    textureRegistry = std::make_unique<TextureRegistry>(context, allocator);
 
     vk::DescriptorPoolSize sizes[]
         = {{vk::DescriptorType::eUniformBuffer, 16},
@@ -222,7 +222,11 @@ std::unique_ptr<Model::Loader> vulkan::VulkanRenderer::getModelLoader()
         *meshRegistry,
         *textureRegistry,
         allocator,
-        pipelineFactory.get()
+        pipelineFactory.get(),
+        [this](const Texture* texture) {
+            for (const Frame& frame : frames)
+                texture->writeDescriptor(frame.frameSet, frame.textureBinding);
+        }
     );
 }
 
@@ -412,7 +416,7 @@ void vulkan::VulkanRenderer::writeGlobalUBO(const Camera& camera) const
     data->perspective = camera.perspective * view;
     data->view = view;
     data->resolution = glm::vec2(swapchain.getExtent().width, swapchain.getExtent().height);
-    data->cameraPosition = glm::vec3(view * glm::vec4(camera.position, 1.0));
+    data->cameraPosition = glm::vec3(view * glm::vec4(camera.view[3]));
     data->sunDirection = glm::normalize(glm::vec3(-0.2f, -0.3f, 1.0f));
     auto [frustumX, frustumY] = camera.getFrustumPlanes();
     data->frustum.x = frustumX.x;
