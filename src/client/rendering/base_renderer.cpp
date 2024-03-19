@@ -7,6 +7,8 @@
 #include "core/config.h"
 #include "core/crash.h"
 #include "model.h"
+#include <imgui.h>
+#include <imgui_impl_sdl2.h>
 #include <spdlog/spdlog.h>
 
 namespace dragonfire {
@@ -19,8 +21,9 @@ BaseRenderer::BaseRenderer()
     }
 }
 
-BaseRenderer::BaseRenderer(int windowFlags) : BaseRenderer()
+BaseRenderer::BaseRenderer(int windowFlags, void (*imguiRenderNewFrameCallback)()) : BaseRenderer()
 {
+    this->imguiRenderNewFrameCallback = imguiRenderNewFrameCallback;
     const auto& cfg = Config::get();
     switch (const int64_t mode = cfg.getInt("windowMode").value_or(INT64_MAX)) {
         case 1: windowFlags |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MOUSE_CAPTURE; break;
@@ -55,11 +58,14 @@ BaseRenderer::BaseRenderer(int windowFlags) : BaseRenderer()
     if (window == nullptr)
         crash("SDL failed to create window: {}", SDL_GetError());
     logger->info("Created window of size {}x{}", width, height);
+    initImGui();
 }
 
 BaseRenderer::~BaseRenderer() noexcept
 {
     SDL_DestroyWindow(window);
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
 }
 
 void BaseRenderer::addDrawable(const Model* model, const Transform& transform)
@@ -81,15 +87,35 @@ void BaseRenderer::addDrawables(const Model* model, const std::span<Transform> t
 
 void BaseRenderer::render(const Camera& camera)
 {
+    ImGui::Render();
     beginFrame(camera);
     drawModels(camera, drawables);
     endFrame();
+}
+
+void BaseRenderer::beginImGuiFrame() const
+{
+    if (imguiRenderNewFrameCallback)
+        imguiRenderNewFrameCallback();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
 }
 
 void BaseRenderer::endFrame()
 {
     drawables.clear();
     frameCount++;
+    ImGui::EndFrame();
+}
+
+void BaseRenderer::initImGui()
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    ImGui::StyleColorsDark();
 }
 
 }// namespace dragonfire

@@ -1,6 +1,5 @@
 find_package(fastgltf CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
-find_package(VulkanHeaders CONFIG)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(unofficial-spirv-reflect CONFIG REQUIRED)
 find_package(meshoptimizer CONFIG REQUIRED)
@@ -43,8 +42,8 @@ add_library(dragonfire-client STATIC
         rendering/model.cpp
         rendering/model.h
 )
-target_link_libraries(dragonfire-client PUBLIC dragonfire-core fastgltf::fastgltf)
-target_link_libraries(dragonfire-client PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator meshoptimizer::meshoptimizer unofficial::spirv-reflect::spirv-reflect)
+target_link_libraries(dragonfire-client PUBLIC dragonfire-core fastgltf::fastgltf imgui_SDL2)
+target_link_libraries(dragonfire-client PRIVATE Vulkan::Headers GPUOpen::VulkanMemoryAllocator meshoptimizer::meshoptimizer unofficial::spirv-reflect::spirv-reflect imgui_vulkan)
 add_dependencies(dragonfire-client shader-target)
 target_compile_definitions(dragonfire-client PRIVATE "SHADER_OUTPUT_PATH=\"${SHADERS_OUT}\"")
 target_include_directories(dragonfire-client PRIVATE ${Stb_INCLUDE_DIR})

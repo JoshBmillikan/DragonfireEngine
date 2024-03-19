@@ -17,9 +17,14 @@ namespace dragonfire {
 class BaseRenderer {
 public:
     BaseRenderer();
-    explicit BaseRenderer(int windowFlags);
+    BaseRenderer(int windowFlags, void(*imguiRenderNewFrameCallback)());
 
-    explicit BaseRenderer(SDL_Window* window) : BaseRenderer() { this->window = window; }
+    explicit BaseRenderer(SDL_Window* window, void(*imguiRenderNewFrameCallback)()) : BaseRenderer()
+    {
+        this->window = window;
+        this->imguiRenderNewFrameCallback = imguiRenderNewFrameCallback;
+        initImGui();
+    }
 
     [[nodiscard]] SDL_Window* getWindow() const { return window; }
 
@@ -29,7 +34,10 @@ public:
     void addDrawable(const Model* model, const Transform& transform);
     void addDrawables(const Model* model, std::span<Transform> transforms);
     void render(const Camera& camera);
-    [[nodiscard]] uint64_t getFrameCount() const {return frameCount;}
+
+    [[nodiscard]] uint64_t getFrameCount() const { return frameCount; }
+
+    void beginImGuiFrame() const;
 
 protected:
     struct Draw {
@@ -37,6 +45,7 @@ protected:
         glm::mat4 transform;
         glm::vec4 bounds;
     };
+
     using Drawables = ankerl::unordered_dense::map<const Material*, TempVec<Draw>>;
     std::shared_ptr<spdlog::logger> logger;
     virtual void beginFrame(const Camera& camera) = 0;
@@ -45,8 +54,11 @@ protected:
 
 private:
     SDL_Window* window = nullptr;
+    void(*imguiRenderNewFrameCallback)() = nullptr;
     uint64_t frameCount = 0;
     Drawables drawables;
+
+    static void initImGui();
 };
 
 }// namespace dragonfire

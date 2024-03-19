@@ -132,6 +132,7 @@ private:
     const Frame& getCurrentFrame() const { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
 
     Frame& getCurrentFrame() { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
+    void initImGui();
 };
 
 struct UBOData {

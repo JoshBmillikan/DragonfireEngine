@@ -4,9 +4,7 @@
 
 #define VULKAN_HPP_USE_REFLECT
 #include "context.h"
-
 #include "core/config.h"
-
 #include <SDL_vulkan.h>
 #include <core/crash.h>
 #include <spdlog/spdlog.h>
@@ -656,7 +654,15 @@ PFN_vkVoidFunction Context::getFunctionByName(const char* functionName, void*) n
     FN(vkMapMemory)
     FN(vkUnmapMemory)
     FN(vkUpdateDescriptorSets)
+    FN(vkCmdBeginRenderingKHR)
+    FN(vkCmdEndRenderingKHR)
+    FN(vkBeginCommandBuffer)
+    FN(vkEndCommandBuffer)
+    FN(vkQueueSubmit)
+    FN(vkQueueWaitIdle)
+    FN(vkResetCommandPool)
 #undef FN
+    SPDLOG_LOGGER_ERROR(spdlog::get("Rendering"), "Failed to load function {} for imGui", functionName);
     return nullptr;
 }
 

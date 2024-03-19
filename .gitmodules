@@ -6,3 +6,6 @@
 	path = external/Jolt
 	url = https://github.com/jrouwe/JoltPhysics.git
 	branch = 4.x
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui.git

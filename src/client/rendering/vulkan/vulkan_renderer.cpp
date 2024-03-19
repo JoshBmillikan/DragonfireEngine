@@ -9,6 +9,8 @@
 #include "gltf_loader.h"
 #include "vulkan_material.h"
 #include <core/utility/math_utils.h>
+#include <imgui_impl_sdl2.h>
+#include <imgui_impl_vulkan.h>
 #include <ranges>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan_hash.hpp>
@@ -34,7 +36,8 @@ static vk::Format getDepthFormat(const vk::PhysicalDevice physicalDevice)
 }
 
 vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
-    : BaseRenderer(SDL_WINDOW_VULKAN), maxDrawCount(Config::get().getInt("maxDrawCount").value_or(1 << 14))
+    : BaseRenderer(SDL_WINDOW_VULKAN, ImGui_ImplVulkan_NewFrame),
+      maxDrawCount(Config::get().getInt("maxDrawCount").value_or(1 << 14))
 {
     enableValidation = enableValidation || std::getenv("VALIDATION_LAYERS");
     std::array enabledExtensions = {
@@ -84,7 +87,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
            {vk::DescriptorType::eCombinedImageSampler, maxDrawCount},
            {vk::DescriptorType::eStorageBuffer, 64}};
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo{};
-    descriptorPoolCreateInfo.flags = vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind;
+    descriptorPoolCreateInfo.flags = vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind | vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
     descriptorPoolCreateInfo.poolSizeCount = 3;
     descriptorPoolCreateInfo.pPoolSizes = sizes;
     descriptorPoolCreateInfo.maxSets = FRAMES_IN_FLIGHT * 16 + maxDrawCount;
@@ -105,6 +108,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
             descriptorLayoutManager
         );
     presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
+    initImGui();
 }
 
 void vulkan::VulkanRenderer::beginFrame(const Camera& camera)
@@ -157,6 +161,8 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& m
     computePrePass(drawCount, true);
     beginRendering();
     mainPass();
+    auto* d = ImGui::GetDrawData();
+    ImGui_ImplVulkan_RenderDrawData(d, getCurrentFrame().cmd);
     frame.cmd.endRendering();
 }
 
@@ -188,6 +194,7 @@ vulkan::VulkanRenderer::~VulkanRenderer()
     presentThread.request_stop();
     presentThread.join();
     context.device.waitIdle();
+    ImGui_ImplVulkan_Shutdown();
     for (Frame& frame : frames) {
         context.device.destroy(frame.pool);
         context.device.destroy(frame.presentSemaphore);
@@ -563,6 +570,36 @@ vulkan::Pipeline vulkan::VulkanRenderer::createComputePipeline() const
     info.vertexCompShader = "cull.comp";
     const auto pipeline = pipelineFactory->getOrCreate(info);
     return pipeline;
+}
+
+void vulkan::VulkanRenderer::initImGui()
+{
+    if (!ImGui_ImplVulkan_LoadFunctions(&Context::getFunctionByName))
+        crash("Failed to load imGui functions");
+
+    ImGui_ImplSDL2_InitForVulkan(getWindow());
+    ImGui_ImplVulkan_InitInfo initInfo{};
+    initInfo.UseDynamicRendering = true;
+    initInfo.Device = context.device;
+    initInfo.Instance = context.instance;
+    initInfo.Queue = context.queues.graphics;
+    initInfo.QueueFamily = context.queues.graphicsFamily;
+    initInfo.Subpass = 0;
+    initInfo.ImageCount = swapchain.getImageCount();
+    initInfo.MinImageCount = FRAMES_IN_FLIGHT;
+    initInfo.MSAASamples = static_cast<VkSampleCountFlagBits>(context.sampleCount);
+    initInfo.PhysicalDevice = context.physicalDevice;
+    initInfo.PipelineCache = pipelineFactory->getCache();
+    initInfo.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    initInfo.PipelineRenderingCreateInfo.depthAttachmentFormat
+        = static_cast<VkFormat>(getDepthFormat(context.physicalDevice));
+    initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    initInfo.DescriptorPool = descriptorPool;
+    const VkFormat swapchainFormat = static_cast<VkFormat>(swapchain.getFormat());
+    initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &swapchainFormat;
+    ImGui_ImplVulkan_Init(&initInfo);
+    ImGui_ImplVulkan_CreateFontsTexture();
+    logger->info("ImGui rendering initialized");
 }
 
 vulkan::VulkanRenderer::Frame::Frame(

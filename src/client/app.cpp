@@ -5,7 +5,9 @@
 #include "app.h"
 #include "core/config.h"
 #include "rendering/vulkan/vulkan_renderer.h"
-#include <SDL2/SDL.h>
+#include <SDL.h>
+#include <imgui.h>
+#include <imgui_impl_sdl2.h>
 #include <physfs.h>
 #include <spdlog/spdlog.h>
 
@@ -72,8 +74,10 @@ App::~App()
 
 void App::mainLoop(const double deltaTime)
 {
+    renderer->beginImGuiFrame();
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        ImGui_ImplSDL2_ProcessEvent(&event);
         switch (event.type) {
             case SDL_QUIT:
                 spdlog::info("Window closed");
@@ -81,8 +85,9 @@ void App::mainLoop(const double deltaTime)
                 break;
         }
     }
-    Transform t = glm::vec3(0.3f, -1.6f, -0.5f);
-    t.scale *= 6.0f;
+    ImGui::Begin("Frame Info");
+    ImGui::Text("Frame time: %.1fms (%.1f FPS)", deltaTime * 1000, ImGui::GetIO().Framerate);
+    ImGui::End();
     if (!world->getECSWorld().progress())
         stop();
     renderer->render(camera);
