@@ -34,6 +34,7 @@ public:
     void addDrawable(const Model* model, const Transform& transform);
     void addDrawables(const Model* model, std::span<Transform> transforms);
     void render(const Camera& camera);
+    virtual void setVsync(bool vsync);
 
     [[nodiscard]] uint64_t getFrameCount() const { return frameCount; }
 

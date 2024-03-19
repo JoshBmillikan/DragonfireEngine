@@ -3,7 +3,6 @@
 //
 
 #include "base_renderer.h"
-
 #include "core/config.h"
 #include "core/crash.h"
 #include "model.h"
@@ -93,6 +92,11 @@ void BaseRenderer::render(const Camera& camera)
     endFrame();
 }
 
+void BaseRenderer::setVsync(const bool vsync)
+{
+    Config::get().setVar("vsync", vsync);
+}
+
 void BaseRenderer::beginImGuiFrame() const
 {
     if (imguiRenderNewFrameCallback)
@@ -112,9 +116,10 @@ void BaseRenderer::initImGui()
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    ImGuiIO& io = ImGui::GetIO();
+    (void) io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;// Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
     ImGui::StyleColorsDark();
 }
 

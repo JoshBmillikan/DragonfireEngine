@@ -87,13 +87,25 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
            {vk::DescriptorType::eCombinedImageSampler, maxDrawCount},
            {vk::DescriptorType::eStorageBuffer, 64}};
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo{};
-    descriptorPoolCreateInfo.flags = vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind | vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+    descriptorPoolCreateInfo.flags = vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind
+                                     | vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
     descriptorPoolCreateInfo.poolSizeCount = 3;
     descriptorPoolCreateInfo.pPoolSizes = sizes;
     descriptorPoolCreateInfo.maxSets = FRAMES_IN_FLIGHT * 16 + maxDrawCount;
     descriptorPool = context.device.createDescriptorPool(descriptorPoolCreateInfo);
 
-    initBuffers();
+    vk::BufferCreateInfo bufferCreateInfo{};
+    bufferCreateInfo.size = padToAlignment(sizeof(UBOData), 16) * 2;
+    bufferCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+    bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    allocInfo.priority = 1.0f;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    globalUBO = allocator.allocate(bufferCreateInfo, allocInfo, "global UBO");
+    initImages();
     cullPipeline = createComputePipeline();
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
@@ -109,6 +121,12 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
         );
     presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
     initImGui();
+}
+
+void vulkan::VulkanRenderer::setVsync(const bool vsync)
+{
+    BaseRenderer::setVsync(vsync);
+    recreateSwapchain(vsync);
 }
 
 void vulkan::VulkanRenderer::beginFrame(const Camera& camera)
@@ -398,8 +416,7 @@ void vulkan::VulkanRenderer::waitForLastFrame()
             case vk::Result::eSuboptimalKHR:
             case vk::Result::eErrorOutOfDateKHR: {
                 const bool vsync = Config::get().getBool("vsync").value_or(true);
-                context.device.waitIdle();
-                swapchain = Swapchain(getWindow(), context, vsync, swapchain);
+                recreateSwapchain(vsync);
                 break;
             }
             default: crash("Failed to acquire next swapchain image: {}", to_string(result));
@@ -468,7 +485,7 @@ void vulkan::VulkanRenderer::present(const std::stop_token& token)
         presentInfo.pImageIndices = &presentData.imageIndex;
         presentInfo.pWaitSemaphores = &presentData.frame->presentSemaphore;
         presentInfo.waitSemaphoreCount = 1;
-        presentData.result = context.queues.present.presentKHR(presentInfo);
+        presentData.result = context.queues.present.presentKHR(&presentInfo);
         presentData.frame = nullptr;
         lock.unlock();
         presentData.condVar.notify_one();
@@ -507,20 +524,10 @@ void vulkan::VulkanRenderer::transistionImageLayout(
     cmd.pipelineBarrier(pipelineStart, pipelineEnd, {}, {}, {}, barrier);
 }
 
-void vulkan::VulkanRenderer::initBuffers()
+void vulkan::VulkanRenderer::initImages()
 {
-    vk::BufferCreateInfo bufferCreateInfo{};
-    bufferCreateInfo.size = padToAlignment(sizeof(UBOData), 16) * 2;
-    bufferCreateInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
-    bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
     VmaAllocationCreateInfo allocInfo{};
-    allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-    allocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     allocInfo.priority = 1.0f;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    globalUBO = allocator.allocate(bufferCreateInfo, allocInfo, "global UBO");
-
     const vk::Format depthFormat = getDepthFormat(context.physicalDevice);
     vk::ImageCreateInfo imageCreateInfo{};
     imageCreateInfo.extent = vk::Extent3D(swapchain.getExtent(), 1);
@@ -542,7 +549,6 @@ void vulkan::VulkanRenderer::initBuffers()
     imageCreateInfo.format = swapchain.getFormat();
     imageCreateInfo.usage = vk::ImageUsageFlagBits::eTransientAttachment
                             | vk::ImageUsageFlagBits::eColorAttachment;
-    // TODO ??? imageCreateInfo.samples = vk::SampleCountFlagBits::e1;
     allocInfo.preferredFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
     msaaImage = allocator.allocate(imageCreateInfo, allocInfo);
 
@@ -570,6 +576,15 @@ vulkan::Pipeline vulkan::VulkanRenderer::createComputePipeline() const
     info.vertexCompShader = "cull.comp";
     const auto pipeline = pipelineFactory->getOrCreate(info);
     return pipeline;
+}
+
+void vulkan::VulkanRenderer::recreateSwapchain(const bool vsync)
+{
+    context.device.waitIdle();
+    swapchain = Swapchain(getWindow(), context, vsync, swapchain);
+    context.device.destroy(msaaView);
+    context.device.destroy(depthView);
+    initImages();
 }
 
 void vulkan::VulkanRenderer::initImGui()

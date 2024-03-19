@@ -193,6 +193,7 @@ Swapchain& Swapchain::operator=(Swapchain&& other) noexcept
 {
     if (this == &other)
         return *this;
+    destroy();
     swapchain = other.swapchain;
     other.swapchain = nullptr;
     format = other.format;

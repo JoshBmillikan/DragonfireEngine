@@ -24,6 +24,7 @@ public:
 
     static constexpr int FRAMES_IN_FLIGHT = 2;
     const uint32_t maxDrawCount;
+    void setVsync(bool vsync) override;
 
 protected:
     void beginFrame(const Camera& camera) override;
@@ -126,12 +127,13 @@ private:
         uint32_t layerCount = 1
     );
 
-    void initBuffers();
+    void initImages();
     Pipeline createComputePipeline() const;
 
     const Frame& getCurrentFrame() const { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
 
     Frame& getCurrentFrame() { return frames[getFrameCount() % FRAMES_IN_FLIGHT]; }
+    void recreateSwapchain(bool vsync);
     void initImGui();
 };
 

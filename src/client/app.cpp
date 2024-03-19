@@ -87,6 +87,11 @@ void App::mainLoop(const double deltaTime)
     }
     ImGui::Begin("Frame Info");
     ImGui::Text("Frame time: %.1fms (%.1f FPS)", deltaTime * 1000, ImGui::GetIO().Framerate);
+    static bool vsync = Config::get().getBool("vsync").value_or(true);
+    const bool last = vsync;
+    ImGui::Checkbox("Vsync", &vsync);
+    if (last != vsync)
+        renderer->setVsync(vsync);
     ImGui::End();
     if (!world->getECSWorld().progress())
         stop();
