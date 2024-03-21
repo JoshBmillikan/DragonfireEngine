@@ -45,9 +45,10 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     camera = Camera(45.0f, float(w), float(h), 0.1f, 1000.0f);
 
     world = std::make_unique<GameWorld>();
-    Transform t = glm::vec3(-0.3f, 5.0f, 0.0f);
+    Transform t = glm::vec3();
     t.scale *= 4.0f;
-    camera.lookAt(t.position + glm::vec3(0.0f, 0.0f, 0.0f));
+    t.rotation = glm::rotate(t.rotation, glm::vec3(0.0f, glm::radians(180.0f), 0.0f));
+    camera.position = glm::vec3(0.0f, 5.0f, 0.0f);
     const auto& ecs = world->getECSWorld();
     ecs.entity().set([&](Model& m, Transform& transform) {
         m = std::move(model);

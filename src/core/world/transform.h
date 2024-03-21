@@ -24,8 +24,8 @@ struct Transform {
 
     [[nodiscard]] glm::mat4 toMatrix() const
     {
-        return glm::translate(glm::mat4(1.0f), position) * glm::toMat4(rotation)
-               * glm::scale(glm::mat4(1.0f), scale);
+        return glm::translate(glm::identity<glm::mat4>(), position) * glm::toMat4(rotation)
+               * glm::scale(glm::identity<glm::mat4>(), scale);
     }
 };
 

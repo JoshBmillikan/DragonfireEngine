@@ -10,13 +10,11 @@
 namespace dragonfire {
 
 class Camera {
-    float zNear = 0.0f, zFar = 0.0f;
-
 public:
+    static constexpr glm::vec3 UP = {0.0f, 0.0f, 1.0f};
     glm::mat4 perspective{};
     glm::mat4 orthograhpic{};
     glm::vec3 position{};
-    glm::quat rotation = glm::identity<glm::mat4>();
 
     Camera(float fov, float width, float height, float zNear, float zFar);
     Camera() = default;
@@ -29,10 +27,10 @@ public:
 
     [[nodiscard]] float getZFar() const { return zFar; }
 
-    [[nodiscard]] glm::mat4 getViewMatrix() const noexcept
-    {
-        return glm::translate(glm::identity<glm::mat4>(), position) * toMat4(rotation);
-    }
+    [[nodiscard]] glm::mat4 getViewMatrix() const noexcept;
+
+private:
+    float zNear = 0.0f, zFar = 0.0f, pitch = 0.0f, yaw = -90.0f ;
 };
 
 }// namespace dragonfire
