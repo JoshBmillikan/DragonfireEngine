@@ -2,8 +2,8 @@
 
 struct TextureIndices{
     uint base;
-    uint metallic;
     uint normal;
+    uint metallic;
     uint emissive;
     uint occlusion;
 };

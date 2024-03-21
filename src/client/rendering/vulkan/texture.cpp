@@ -199,7 +199,7 @@ SmallVector<Texture*> TextureRegistry::getCreateTextures(
         samplerCreateInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
         samplerCreateInfo.mipLodBias = samplerCreateInfo.minLod = samplerCreateInfo.maxLod = 0.0f;
         vk::Sampler sampler = device.createSampler(samplerCreateInfo);
-        auto& t = textures[s] = Texture(sampler, textureCount++, std::move(i), device);
+        auto& t = textures[s] = Texture(sampler, ++textureCount, std::move(i), device);
         out.pushBack(&t);
     }
     cmd.end();

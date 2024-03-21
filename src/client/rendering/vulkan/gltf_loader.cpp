@@ -188,7 +188,6 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
     flushStagingBuffer();
 
     const size_t vertexOffset = vertexCount * sizeof(Vertex);
-    const size_t indexOffset = indexCount * sizeof(uint32_t);
 
     const auto name = primitiveId > 0 ? fmt::format("{}_{}", mesh.name, primitiveId) : std::string(mesh.name);
     const glm::vec4 bounds = computeBounds(vertices, vertexCount);
@@ -322,16 +321,15 @@ std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(cons
 
 
     TextureIds textureIds{};
-    if (material.pbrData.baseColorTexture.has_value()) {
-        auto& texture = asset.textures[material.pbrData.baseColorTexture.value().textureIndex];
-        const auto& image = asset.images[texture.imageIndex.value()];
-        const auto name = texture.name.empty() ? image.name : texture.name;
-        ImageData imageData = loadImageData(image.data, asset);
-        assert(imageData.data);// TODO fixme
-        Texture* t = textureRegistry.getCreateTexture(name, std::move(imageData));
-        descriptorUpdateCallback(t);
-        textureIds.albedo = t->getId();
-    }
+    if (material.pbrData.baseColorTexture.has_value())
+        textureIds.albedo = loadTexture(material.pbrData.baseColorTexture.value())->getId();
+    if (material.pbrData.metallicRoughnessTexture.has_value())
+        textureIds.metallic = loadTexture(material.pbrData.metallicRoughnessTexture.value())->getId();
+    if (material.normalTexture.has_value())
+        textureIds.normal = loadTexture(material.normalTexture.value())->getId();
+    if (material.emissiveTexture.has_value())
+        textureIds.emmisive = loadTexture(material.emissiveTexture.value())->getId();
+
     auto out = new VulkanMaterial(textureIds, pipeline);
 
     return {out, {}};
@@ -354,6 +352,17 @@ void VulkanGltfLoader::loadAsset(const char* path)
                                          : parser.loadBinaryGLTF(&buffer, PHYSFS_getRealDir(path), opts)
     ));
     SPDLOG_TRACE("Loaded asset file \"{}\"", path);
+}
+
+Texture* VulkanGltfLoader::loadTexture(const fastgltf::TextureInfo& textureInfo)
+{
+    auto& texture = asset.textures[textureInfo.textureIndex];
+    const auto& image = asset.images[texture.imageIndex.value()];
+    const auto name = texture.name.empty() ? image.name : texture.name;
+    ImageData imageData = loadImageData(image.data, asset);
+    Texture* t = textureRegistry.getCreateTexture(name, std::move(imageData));
+    descriptorUpdateCallback(t);
+    return t;
 }
 
 }// namespace dragonfire::vulkan

@@ -52,6 +52,7 @@ private:
     );
     std::pair<Material*, SmallVector<vk::Fence>> loadMaterial(const fastgltf::Material& material);
     void loadAsset(const char* path);
+    Texture* loadTexture(const fastgltf::TextureInfo& textureInfo);
 };
 
 }// namespace dragonfire::vulkan
