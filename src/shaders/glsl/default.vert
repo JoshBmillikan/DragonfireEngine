@@ -25,7 +25,7 @@ layout (location=3) out uint instanceIndex;
 void main()
 {
     mat4 model = transforms.modelMatrices[gl_InstanceIndex];
-    mat4 transform = uboData.perspective * model;
+    mat4 transform = uboData.perspective * uboData.view * model;
     gl_Position = transform * vec4(position, 1.0);
     fragPos = vec3(model * vec4 (position, 1.0));
     // forward normals and uvs to fragment shader

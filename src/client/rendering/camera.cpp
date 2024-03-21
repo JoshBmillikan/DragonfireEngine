@@ -17,7 +17,9 @@ Camera::Camera(const float fov, const float width, const float height, const flo
 
 void Camera::lookAt(const glm::vec3 target)
 {
-    view = glm::lookAtRH(glm::vec3(view[3]), target, {0, 0, 1});
+    const glm::mat4 look = glm::lookAtRH(position, target, {0, 0, 1});
+    position = glm::vec3(look[3]);
+    rotation = glm::toQuat(look);
 }
 
 static glm::vec4 normalizePlane(const glm::vec4 p)

@@ -436,11 +436,11 @@ void vulkan::VulkanRenderer::writeGlobalUBO(const Camera& camera) const
     ptr += uboOffset * (getFrameCount() % FRAMES_IN_FLIGHT);
     const auto data = reinterpret_cast<UBOData*>(ptr);
     const glm::mat4 view = camera.getViewMatrix();
-    data->orthographic = camera.orthograhpic * view;
-    data->perspective = camera.perspective * view;
+    data->orthographic = camera.orthograhpic;
+    data->perspective = camera.perspective;
     data->view = view;
     data->resolution = glm::vec2(swapchain.getExtent().width, swapchain.getExtent().height);
-    data->cameraPosition = glm::vec3(view * glm::vec4(camera.view[3]));
+    data->cameraPosition = camera.position;
     data->sunDirection = glm::normalize(glm::vec3(-0.2f, -0.3f, 1.0f));
     auto [frustumX, frustumY] = camera.getFrustumPlanes();
     data->frustum.x = frustumX.x;

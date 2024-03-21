@@ -286,7 +286,7 @@ std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(cons
     pipelineInfo.enableMultisampling = sampleCount != vk::SampleCountFlagBits::e1;
     pipelineInfo.topology = vk::PrimitiveTopology::eTriangleList;
 
-    pipelineInfo.rasterState.frontFace = vk::FrontFace::eCounterClockwise;
+    pipelineInfo.rasterState.frontFace = vk::FrontFace::eClockwise;
     pipelineInfo.rasterState.cullMode = vk::CullModeFlagBits::eBack;
     pipelineInfo.rasterState.polygonMode = vk::PolygonMode::eFill;
     pipelineInfo.rasterState.lineWidth = 1.0f;

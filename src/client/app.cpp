@@ -43,18 +43,22 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
     camera = Camera(45.0f, float(w), float(h), 0.1f, 1000.0f);
-    camera.view[3][3] += 3.0f;
+
     world = std::make_unique<GameWorld>();
-    Transform t = glm::vec3(0.3f, -1.6f, -0.5f);
-    t.scale *= 6.0f;
-    camera.lookAt(t.position + glm::vec3(0.0f, 0.0f, -0.5f));
+    Transform t = glm::vec3(-0.3f, 5.0f, 0.0f);
+    t.scale *= 4.0f;
+    camera.lookAt(t.position + glm::vec3(0.0f, 0.0f, 0.0f));
     const auto& ecs = world->getECSWorld();
     ecs.entity().set([&](Model& m, Transform& transform) {
         m = std::move(model);
         transform = t;
     });
-    ecs.system<const Model, const Transform>().each([&](const Model& m, const Transform& transform) {
-        renderer->addDrawable(&m, transform);
+    ecs.system<const Model, const Transform>()
+        .kind(flecs::PostUpdate)
+        .each([&](const Model& m, const Transform& transform) { renderer->addDrawable(&m, transform); });
+
+    ecs.system<Transform>().each([](const flecs::iter& it, size_t, Transform& tr) {
+        tr.rotation = glm::rotate(tr.rotation, it.delta_time() * 1.0f, glm::vec3(0.0f, 0.0f, 1.0f));
     });
 }
 
@@ -83,6 +87,13 @@ void App::mainLoop(const double deltaTime)
                 spdlog::info("Window closed");
                 stop();
                 break;
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym) {
+                    case SDLK_SPACE: camera.position.z += 3.0f * deltaTime; break;
+                    case SDLK_LCTRL: camera.position.z -= 3.0f * deltaTime; break;
+                    default: break;
+                }
+                break;
         }
     }
     ImGui::Begin("Frame Info");
@@ -93,7 +104,7 @@ void App::mainLoop(const double deltaTime)
     if (last != vsync)
         renderer->setVsync(vsync);
     ImGui::End();
-    if (!world->getECSWorld().progress())
+    if (!world->getECSWorld().progress(static_cast<float>(deltaTime)))
         stop();
     renderer->render(camera);
 }
