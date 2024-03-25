@@ -48,7 +48,7 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     Transform t = glm::vec3();
     t.scale *= 4.0f;
     t.rotation = glm::rotate(t.rotation, glm::vec3(0.0f, glm::radians(180.0f), 0.0f));
-    camera.position = glm::vec3(0.0f, 5.0f, 0.0f);
+    camera.position = glm::vec3(0.0f, 5.0f, 3.0f);
     const auto& ecs = world->getECSWorld();
     ecs.entity().set([&](Model& m, Transform& transform) {
         m = std::move(model);
