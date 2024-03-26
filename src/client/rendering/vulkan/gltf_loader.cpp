@@ -8,7 +8,6 @@
 #include "core/utility/formatted_error.h"
 #include "core/utility/small_vector.h"
 #include "core/utility/temp_containers.h"
-#include "core/utility/utility.h"
 #include "pipeline.h"
 #include "vulkan_material.h"
 // ReSharper disable once CppUnusedIncludeDirective
@@ -74,7 +73,7 @@ Model VulkanGltfLoader::load(const char* path)
             if (device.waitForFences(fence, true, UINT64_MAX) != vk::Result::eSuccess)
                 SPDLOG_ERROR("Fence wait failed");
             device.destroy(fence);
-            // TODO material & texture data
+
             Material* material = nullptr;
             if (primitive.materialIndex.has_value()) {
                 auto& materialInfo = asset.materials[primitive.materialIndex.value()];
@@ -101,7 +100,8 @@ Model VulkanGltfLoader::load(const char* path)
 
 static void optimizeMesh(
     Vertex* vertices,
-    size_t& vertexCount,
+    size_t& vertexCount,            // TODO material & texture data
+
     uint32_t* indices,
     const size_t indexCount,
     void* ptr
