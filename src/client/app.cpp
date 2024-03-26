@@ -42,7 +42,7 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     SDL_Window* window = renderer->getWindow();
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
-    camera = Camera(45.0f, float(w), float(h), 0.1f, 1000.0f);
+    auto camera = Camera(45.0f, float(w), float(h), 0.1f, 1000.0f);
 
     world = std::make_unique<GameWorld>();
     Transform t = glm::vec3();
@@ -50,6 +50,7 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     t.rotation = glm::rotate(t.rotation, glm::vec3(0.0f, glm::radians(180.0f), 0.0f));
     camera.position = glm::vec3(0.0f, 5.0f, 3.0f);
     const auto& ecs = world->getECSWorld();
+    ecs.singleton<Camera>().set(camera);
     ecs.entity().set([&](Model& m, Transform& transform) {
         m = std::move(model);
         transform = t;
@@ -94,8 +95,8 @@ void App::mainLoop(const double deltaTime)
                 break;
             case SDL_KEYDOWN:
                 switch (event.key.keysym.sym) {
-                    case SDLK_SPACE: camera.position.z += 3.0f * deltaTime; break;
-                    case SDLK_LCTRL: camera.position.z -= 3.0f * deltaTime; break;
+                    case SDLK_SPACE: world->getECSWorld().singleton<Camera>().get_mut<Camera>()->position.z += 3.0f * deltaTime; break;
+                    case SDLK_LCTRL: world->getECSWorld().singleton<Camera>().get_mut<Camera>()->position.z -= 3.0f * deltaTime; break;
                     default: break;
                 }
                 break;
@@ -112,7 +113,7 @@ void App::mainLoop(const double deltaTime)
         stop();
     ImGui::Text("Draw count: %d", renderer->getDrawCount());
     ImGui::End();
-    renderer->render(camera);
+    renderer->render(*world->getECSWorld().singleton<Camera>().get<Camera>());
 }
 
 }// namespace dragonfire

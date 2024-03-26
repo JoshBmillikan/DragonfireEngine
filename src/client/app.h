@@ -19,7 +19,6 @@ protected:
     void mainLoop(double deltaTime) override;
 
 private:
-    Camera camera;
     std::unique_ptr<BaseRenderer> renderer;
 };
 
