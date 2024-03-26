@@ -4,7 +4,6 @@
 
 #include "app.h"
 #include "core/config.h"
-#include "rendering/vulkan/vulkan_renderer.h"
 #include <SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -35,7 +34,8 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
         spdlog::warn("PATH: {}", *p);
     PHYSFS_freeList(ptr);
 
-    renderer = std::make_unique<vulkan::VulkanRenderer>(cli["vulkan-validation"].as<bool>());
+    renderer
+        = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(cli["vulkan-validation"].as<bool>()));
     auto loader = renderer->getModelLoader();
     auto model = loader->load("assets/models/bunny.glb");
     loader.reset();
@@ -59,7 +59,11 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
         .each([&](const Model& m, const Transform& transform) { renderer->addDrawable(&m, transform); });
 
     ecs.system<Transform>().each([](const flecs::iter& it, size_t, Transform& tr) {
-        tr.rotation = glm::rotate(tr.rotation, it.delta_time() * 1.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+        tr.rotation = glm::slerp(
+            tr.rotation,
+            glm::rotate(tr.rotation, 2.0f, glm::vec3(0.0f, 0.0f, 1.0f)),
+            it.delta_time()
+        );
     });
 }
 
@@ -104,9 +108,10 @@ void App::mainLoop(const double deltaTime)
     ImGui::Checkbox("Vsync", &vsync);
     if (last != vsync)
         renderer->setVsync(vsync);
-    ImGui::End();
     if (!world->getECSWorld().progress(static_cast<float>(deltaTime)))
         stop();
+    ImGui::Text("Draw count: %d", renderer->getDrawCount());
+    ImGui::End();
     renderer->render(camera);
 }
 

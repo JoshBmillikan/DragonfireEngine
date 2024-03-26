@@ -17,9 +17,9 @@ namespace dragonfire {
 class BaseRenderer {
 public:
     BaseRenderer();
-    BaseRenderer(int windowFlags, void(*imguiRenderNewFrameCallback)());
+    BaseRenderer(int windowFlags, void (*imguiRenderNewFrameCallback)());
 
-    explicit BaseRenderer(SDL_Window* window, void(*imguiRenderNewFrameCallback)()) : BaseRenderer()
+    explicit BaseRenderer(SDL_Window* window, void (*imguiRenderNewFrameCallback)()) : BaseRenderer()
     {
         this->window = window;
         this->imguiRenderNewFrameCallback = imguiRenderNewFrameCallback;
@@ -40,6 +40,10 @@ public:
 
     void beginImGuiFrame() const;
 
+    static BaseRenderer* createRenderer(bool enableVsync);
+
+    [[nodiscard]] uint32_t getDrawCount() const noexcept { return drawables.size(); }
+
 protected:
     struct Draw {
         Mesh mesh;
@@ -55,7 +59,7 @@ protected:
 
 private:
     SDL_Window* window = nullptr;
-    void(*imguiRenderNewFrameCallback)() = nullptr;
+    void (*imguiRenderNewFrameCallback)() = nullptr;
     uint64_t frameCount = 0;
     Drawables drawables;
 

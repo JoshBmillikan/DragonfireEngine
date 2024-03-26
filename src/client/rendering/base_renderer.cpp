@@ -6,6 +6,7 @@
 #include "core/config.h"
 #include "core/crash.h"
 #include "model.h"
+#include "vulkan/vulkan_renderer.h"
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <spdlog/spdlog.h>
@@ -103,6 +104,11 @@ void BaseRenderer::beginImGuiFrame() const
         imguiRenderNewFrameCallback();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
+}
+
+BaseRenderer* BaseRenderer::createRenderer(const bool enableVsync)
+{
+    return new vulkan::VulkanRenderer(enableVsync);
 }
 
 void BaseRenderer::endFrame()

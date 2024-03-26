@@ -28,3 +28,6 @@ target_link_libraries(imgui_SDL2 PUBLIC imgui SDL2::SDL2)
 find_package(Vulkan REQUIRED)
 target_link_libraries(imgui_vulkan PUBLIC imgui Vulkan::Headers)
 target_compile_definitions(imgui_vulkan PRIVATE VK_NO_PROTOTYPES IMGUI_IMPL_VULKAN_NO_PROTOTYPES)
+
+set(FASTNOISE2_NOISETOOL OFF CACHE BOOL "Build Noise Tool" FORCE)
+add_subdirectory(FastNoise2)
