@@ -18,8 +18,19 @@ void Model::addPrimitive(
 
 Model::~Model()
 {
-    for (auto& prim : primitives) {
+    for (const auto& prim : primitives) {
         delete prim.material;
     }
 }
+
+void Model::writeDrawData(Drawables& drawables, const Transform& baseTransform) const
+{
+    const glm::mat4 base = baseTransform.toMatrix();
+    for (const auto& primitive : primitives) {
+        assert(primitive.material);
+        drawables[primitive.material]
+            .emplace_back(primitive.mesh, base * primitive.transform, primitive.bounds);
+    }
+}
+
 }// namespace dragonfire

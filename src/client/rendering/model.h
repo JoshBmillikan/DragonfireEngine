@@ -6,13 +6,13 @@
 #include "core/utility/small_vector.h"
 #include "material.h"
 #include <glm/ext/matrix_transform.hpp>
-#include <glm/glm.hpp>
 #include <utility>
+#include "drawable.h"
 
 namespace dragonfire {
 using Mesh = std::uintptr_t;
 
-class Model {
+class Model : public Drawable {
     friend class Loader;
 
 public:
@@ -20,7 +20,8 @@ public:
 
     Model(std::string name) : name(std::move(name)) {}
 
-    ~Model();
+    ~Model() override;
+    void writeDrawData(Drawables& drawables, const Transform& baseTransform) const override;
 
     class Loader {
     public:

@@ -68,21 +68,15 @@ BaseRenderer::~BaseRenderer() noexcept
     ImGui::DestroyContext();
 }
 
-void BaseRenderer::addDrawable(const Model* model, const Transform& transform)
+void BaseRenderer::addDrawable(const Drawable* drawable, const Transform& transform)
 {
-    for (size_t i = 0; i < model->primitiveCount(); i++) {
-        const Model::Primitive& primitive = (*model)[i];
-        assert(primitive.material);
-        glm::mat4 base = transform.toMatrix();
-        drawables[primitive.material]
-            .emplace_back(primitive.mesh, base * primitive.transform, primitive.bounds);
-    }
+    drawable->writeDrawData(drawables, transform);
 }
 
-void BaseRenderer::addDrawables(const Model* model, const std::span<Transform> transforms)
+void BaseRenderer::addDrawables(const Drawable* drawable, const std::span<Transform> transforms)
 {
     for (auto& t : transforms)
-        addDrawable(model, t);
+        addDrawable(drawable, t);
 }
 
 void BaseRenderer::render(const Camera& camera)

@@ -28,7 +28,7 @@ public:
 
 protected:
     void beginFrame(const Camera& camera) override;
-    void drawModels(const Camera& camera, const Drawables& models) override;
+    void drawModels(const Camera& camera, const Drawable::Drawables& models) override;
     void endFrame() override;
 
 private:

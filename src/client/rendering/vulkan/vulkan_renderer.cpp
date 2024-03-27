@@ -140,7 +140,7 @@ void vulkan::VulkanRenderer::beginFrame(const Camera& camera)
     frame.cmd.begin(beginInfo);
 }
 
-void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawables& models)
+void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawable::Drawables& models)
 {
     if (models.empty())
         return;
