@@ -111,7 +111,7 @@ void App::mainLoop(const double deltaTime)
         renderer->setVsync(vsync);
     if (!world->getECSWorld().progress(static_cast<float>(deltaTime)))
         stop();
-    ImGui::Text("Draw count: %d", renderer->getDrawCount());
+    ImGui::Text("Model count: %d", renderer->getDrawCount());
     ImGui::End();
     renderer->render(*world->getECSWorld().singleton<Camera>().get<Camera>());
 }
