@@ -31,3 +31,5 @@ target_compile_definitions(imgui_vulkan PRIVATE VK_NO_PROTOTYPES IMGUI_IMPL_VULK
 
 set(FASTNOISE2_NOISETOOL OFF CACHE BOOL "Build Noise Tool" FORCE)
 add_subdirectory(FastNoise2)
+set(SOL2_LUA_VERSION "LuaJIT" CACHE STRING "The version of Lua needed. Can be 5.1, 5.2, 5.3, 5.4, LuaJIT, or a more specific 3-part version number for a specifc Lua (e.g., 5.4.4 or luajit-2.0.5)" FORCE)
+add_subdirectory(sol2)

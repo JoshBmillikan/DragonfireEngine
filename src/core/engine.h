@@ -4,8 +4,7 @@
 
 #pragma once
 #include "world/game_world.h"
-
-
+#include <sol/sol.hpp>
 #include <cxxopts.hpp>
 #include <functional>
 
@@ -33,6 +32,8 @@ public:
     {
         return dynamic_cast<T*>(INSTANCE);
     }
+
+    sol::state lua;
 
 protected:
     virtual void mainLoop(double deltaTime) = 0;
