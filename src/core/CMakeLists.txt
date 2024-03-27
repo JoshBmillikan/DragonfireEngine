@@ -10,6 +10,8 @@ find_package(glm CONFIG REQUIRED)
 find_package(flecs CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
 find_package(re2 CONFIG REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LuaJIT REQUIRED IMPORTED_TARGET luajit)
 
 add_library(dragonfire-core STATIC
         engine.cpp
@@ -38,7 +40,7 @@ target_link_libraries(dragonfire-core PUBLIC SDL2::SDL2 nlohmann_json::nlohmann_
         glm::glm spdlog::spdlog Jolt cxxopts::cxxopts re2::re2
         $<IF:$<TARGET_EXISTS:PhysFS::PhysFS>,PhysFS::PhysFS,PhysFS::PhysFS-static>
         magic_enum::magic_enum GameNetworkingSockets::shared unordered_dense::unordered_dense
-        $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static> FastNoise sol2::sol2)
+        $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static> FastNoise sol2::sol2 PkgConfig::LuaJIT)
 target_compile_definitions(dragonfire-core PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 add_executable(core-tests utility/frame_allocator.test.cpp

@@ -93,6 +93,8 @@ Engine::Engine(
         spdlog::error("Failed to mount asset dir: {}", e.what());
     }
     initLogging(cli["log"].as<spdlog::level::level_enum>());
+    lua.open_libraries(sol::lib::base, sol::lib::coroutine, sol::lib::string, sol::lib::math);
+    spdlog::info("lua interpreter version: {}", lua.get_or<std::string>("_VERSION", "Unknown"));
 }
 
 Engine::~Engine()
