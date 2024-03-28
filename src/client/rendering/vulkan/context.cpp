@@ -334,12 +334,16 @@ static bool isValidDevice(
     const std::span<const char*> enabledExtensions
 )
 {
+    auto deviceProps = device.getProperties();
+    if (deviceProps.deviceType != vk::PhysicalDeviceType::eDiscreteGpu
+        && deviceProps.deviceType != vk::PhysicalDeviceType::eIntegratedGpu)
+        return false;
     const auto logger = spdlog::get("Rendering");
     if (!supportsRequriedFeatures(device, requiredFeatures)) {
         SPDLOG_LOGGER_DEBUG(
             logger,
             "Device {} does not support requred features",
-            static_cast<const char*>(device.getProperties().deviceName)
+            static_cast<const char*>(deviceProps.deviceName)
         );
         return false;
     }
@@ -363,7 +367,7 @@ static bool isValidDevice(
             SPDLOG_LOGGER_DEBUG(
                 logger,
                 "Device {} does not support requred extension {}",
-                static_cast<const char*>(device.getProperties().deviceName),
+                static_cast<const char*>(deviceProps.deviceName),
                 extension
             );
             return false;
@@ -375,7 +379,7 @@ static bool isValidDevice(
         SPDLOG_LOGGER_DEBUG(
             logger,
             "Device {} does not have valid device queues",
-            static_cast<const char*>(device.getProperties().deviceName)
+            static_cast<const char*>(deviceProps.deviceName)
         );
     }
     return queues;
