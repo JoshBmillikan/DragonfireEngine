@@ -593,6 +593,7 @@ void vulkan::VulkanRenderer::initImGui()
         crash("Failed to load imGui functions");
 
     ImGui_ImplSDL2_InitForVulkan(getWindow());
+    context.queues.graphics.waitIdle();
     ImGui_ImplVulkan_InitInfo initInfo{};
     initInfo.UseDynamicRendering = true;
     initInfo.Device = context.device;
