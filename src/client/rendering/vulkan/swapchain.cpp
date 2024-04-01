@@ -133,8 +133,9 @@ Swapchain::Swapchain(SDL_Window* window, const Context& ctx, const bool vsync, c
                                           : vk::SharingMode::eConcurrent;
     const auto logger = spdlog::get("Rendering");
     const vk::PresentModeKHR presentMode = getPresentMode(vsync, ctx, logger.get());
+    logger->debug("Using swapchain presentation mode {}", to_string(presentMode));
     const vk::SurfaceFormatKHR surfaceFormat = getSurfaceFormat(ctx, logger.get());
-    logger->info("Using swapchain surface format {}", to_string(surfaceFormat.format));
+    logger->debug("Using swapchain surface format {}", to_string(surfaceFormat.format));
     format = surfaceFormat.format;
 
     const uint32_t queueIndices[] = {ctx.queues.graphicsFamily, ctx.queues.presentFamily};
