@@ -29,10 +29,6 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     catch (const std::exception& e) {
         spdlog::error("Failed to load config file: {}", e.what());
     }
-    char** ptr = PHYSFS_enumerateFiles("assets/models");
-    for (char** p = ptr; *p; p++)
-        spdlog::warn("PATH: {}", *p);
-    PHYSFS_freeList(ptr);
 
     renderer
         = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(cli["vulkan-validation"].as<bool>()));

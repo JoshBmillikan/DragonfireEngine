@@ -75,7 +75,7 @@ public:
     Pipeline getOrCreate(const PipelineInfo& info);
     std::optional<Pipeline> getPipeline(const PipelineInfo& info);
 
-    vk::PipelineCache getCache() const { return cache; }
+    [[nodiscard]] vk::PipelineCache getCache() const { return cache; }
 
     Pipeline operator()(const PipelineInfo& info) { return getOrCreate(info); }
 
