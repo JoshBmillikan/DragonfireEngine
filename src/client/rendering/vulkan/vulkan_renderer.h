@@ -112,7 +112,7 @@ private:
     void waitForLastFrame();
     void writeGlobalUBO(const Camera& camera) const;
     void present(const std::stop_token& token);
-    void transistionImageLayout(
+    void transitionImageLayout(
         vk::Image image,
         vk::ImageLayout from,
         vk::ImageLayout to,
