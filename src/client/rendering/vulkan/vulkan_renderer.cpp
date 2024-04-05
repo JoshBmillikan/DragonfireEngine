@@ -186,7 +186,7 @@ void vulkan::VulkanRenderer::drawModels(const Camera& camera, const Drawable::Dr
 
 void vulkan::VulkanRenderer::endFrame()
 {
-    transistionImageLayout(
+    transitionImageLayout(
         swapchain.currentImage(),
         vk::ImageLayout::eColorAttachmentOptimal,
         vk::ImageLayout::ePresentSrcKHR,
@@ -341,7 +341,7 @@ void vulkan::VulkanRenderer::mainPass()
 
 void vulkan::VulkanRenderer::beginRendering()
 {
-    transistionImageLayout(
+    transitionImageLayout(
         swapchain.currentImage(),
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::eColorAttachmentOptimal,
@@ -361,7 +361,7 @@ void vulkan::VulkanRenderer::beginRendering()
         color.resolveMode = vk::ResolveModeFlagBits::eNone;
     }
     else {
-        transistionImageLayout(
+        transitionImageLayout(
             msaaImage,
             vk::ImageLayout::eUndefined,
             vk::ImageLayout::eColorAttachmentOptimal,
@@ -493,7 +493,7 @@ void vulkan::VulkanRenderer::present(const std::stop_token& token)
     logger->trace("Presentation thread destroyed");
 }
 
-void vulkan::VulkanRenderer::transistionImageLayout(
+void vulkan::VulkanRenderer::transitionImageLayout(
     const vk::Image image,
     const vk::ImageLayout from,
     const vk::ImageLayout to,
