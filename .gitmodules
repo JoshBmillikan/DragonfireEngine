@@ -16,3 +16,6 @@
 	path = external/sol2
 	url = https://github.com/ThePhD/sol2.git
 	branch = main
+[submodule "external/re2"]
+	path = external/re2
+	url = https://github.com/google/re2.git

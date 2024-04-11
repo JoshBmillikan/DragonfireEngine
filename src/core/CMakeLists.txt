@@ -9,7 +9,6 @@ find_package(GameNetworkingSockets CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(flecs CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
-find_package(re2 CONFIG REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LuaJIT REQUIRED IMPORTED_TARGET luajit)
 

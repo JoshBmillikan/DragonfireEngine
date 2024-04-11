@@ -55,9 +55,6 @@
     "name" : "stb",
     "version>=" : "2023-04-11#1"
   }, {
-    "name" : "re2",
-    "version>=" : "2023-07-01"
-  }, {
     "name" : "luajit",
     "version>=" : "2023-01-04#5"
   } ]
