@@ -57,5 +57,8 @@
   }, {
     "name" : "luajit",
     "version>=" : "2023-01-04#5"
+  }, {
+    "name" : "abseil",
+    "version>=" : "20240116.1#1"
   } ]
 }
