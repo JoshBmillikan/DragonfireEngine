@@ -19,12 +19,11 @@ class Material {
     uint32_t pipelineId = 0;
 
 public:
+    static Material* DEFAULT;
     Material(const TextureIds& textureIds, const uint32_t pipelineId)
         : textureIds(textureIds), pipelineId(pipelineId)
     {
     }
-
-    virtual void foo() = 0;
 
     virtual ~Material() = default;
 

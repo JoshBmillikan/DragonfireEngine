@@ -19,7 +19,8 @@ void Model::addPrimitive(
 Model::~Model()
 {
     for (const auto& prim : primitives) {
-        delete prim.material;
+        if (prim.material != Material::DEFAULT)
+            delete prim.material;
     }
 }
 

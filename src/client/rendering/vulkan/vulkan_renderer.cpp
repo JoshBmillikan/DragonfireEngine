@@ -107,6 +107,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     globalUBO = allocator.allocate(bufferCreateInfo, allocInfo, "global UBO");
     initImages();
     cullPipeline = createComputePipeline();
+    VulkanMaterial::initDefaultMaterial(context.sampleCount, *pipelineFactory);
 
     for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++)
         frames[i] = Frame(

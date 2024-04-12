@@ -34,6 +34,7 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
         = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(cli["vulkan-validation"].as<bool>()));
     auto loader = renderer->getModelLoader();
     auto model = loader->load("assets/models/bunny.glb");
+    auto floor = loader->load("assets/models/floor.glb");
     loader.reset();
     SDL_Window* window = renderer->getWindow();
     int w, h;
@@ -50,6 +51,10 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     ecs.entity().set([&](Model& m, Transform& transform) {
         m = std::move(model);
         transform = t;
+    });
+    ecs.entity().set([&](Model& m, Transform& transform) {
+        m = std::move(floor);
+        transform = Transform();
     });
     ecs.system<const Model, const Transform>()
         .kind(flecs::PostUpdate)

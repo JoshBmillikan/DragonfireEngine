@@ -5,5 +5,6 @@
 #include "material.h"
 
 namespace dragonfire {
+Material* Material::DEFAULT = nullptr;
 
 }

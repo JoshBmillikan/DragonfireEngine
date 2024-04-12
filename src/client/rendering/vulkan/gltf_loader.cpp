@@ -74,7 +74,7 @@ Model VulkanGltfLoader::load(const char* path)
                 SPDLOG_ERROR("Fence wait failed");
             device.destroy(fence);
 
-            Material* material = nullptr;
+            Material* material = Material::DEFAULT;
             if (primitive.materialIndex.has_value()) {
                 auto& materialInfo = asset.materials[primitive.materialIndex.value()];
                 auto [mat, f] = loadMaterial(materialInfo);
@@ -100,8 +100,7 @@ Model VulkanGltfLoader::load(const char* path)
 
 static void optimizeMesh(
     Vertex* vertices,
-    size_t& vertexCount,            // TODO material & texture data
-
+    size_t& vertexCount,
     uint32_t* indices,
     const size_t indexCount,
     void* ptr
@@ -345,7 +344,8 @@ void VulkanGltfLoader::loadAsset(const char* path)
     data.resize(data.size() + fastgltf::getGltfBufferPadding());
     fastgltf::GltfDataBuffer buffer;
     buffer.fromByteView(data.data(), size, data.capacity());
-    constexpr auto opts = fastgltf::Options::GenerateMeshIndices | fastgltf::Options::LoadExternalBuffers;
+    constexpr auto opts = fastgltf::Options::GenerateMeshIndices | fastgltf::Options::LoadExternalBuffers
+                          | fastgltf::Options::DecomposeNodeMatrices;
     const auto type = determineGltfFileType(&buffer);
     asset = std::move(checkGltf(
         type == fastgltf::GltfType::glTF ? parser.loadGLTF(&buffer, PHYSFS_getRealDir(path), opts)
