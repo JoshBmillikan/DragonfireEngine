@@ -52,6 +52,16 @@ private:
     );
     std::pair<Material*, SmallVector<vk::Fence>> loadMaterial(const fastgltf::Material& material);
     void loadAsset(const char* path);
+    void loadMesh(
+        const fastgltf::Mesh& mesh,
+        Model& out,
+        const glm::mat4& transform = glm::identity<glm::mat4>()
+    );
+    void loadNode(
+        const fastgltf::Node& node,
+        Model& out,
+        const glm::mat4& transform = glm::identity<glm::mat4>()
+    );
     Texture* loadTexture(const fastgltf::TextureInfo& textureInfo);
 };
 

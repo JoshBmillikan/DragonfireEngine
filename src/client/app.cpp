@@ -43,7 +43,6 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
 
     world = std::make_unique<GameWorld>();
     Transform t = glm::vec3();
-    t.scale *= 4.0f;
     t.rotation = glm::rotate(t.rotation, glm::vec3(0.0f, glm::radians(180.0f), 0.0f));
     camera.position = glm::vec3(0.0f, 5.0f, 3.0f);
     const auto& ecs = world->getECSWorld();
@@ -52,15 +51,20 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
         m = std::move(model);
         transform = t;
     });
-    ecs.entity().set([&](Model& m, Transform& transform) {
-        m = std::move(floor);
-        transform = Transform();
-    });
+
+    struct StaticObject {};
+
+    ecs.entity()
+        .set([&](Model& m, Transform& transform) {
+            m = std::move(floor);
+            transform = Transform();
+        })
+        .add<StaticObject>();
     ecs.system<const Model, const Transform>()
         .kind(flecs::PostUpdate)
         .each([&](const Model& m, const Transform& transform) { renderer->addDrawable(&m, transform); });
 
-    ecs.system<Transform>().each([](const flecs::iter& it, size_t, Transform& tr) {
+    ecs.system<Transform>().without<StaticObject>().each([](const flecs::iter& it, size_t, Transform& tr) {
         tr.rotation = glm::slerp(
             tr.rotation,
             glm::rotate(tr.rotation, 2.0f, glm::vec3(0.0f, 0.0f, 1.0f)),
@@ -96,8 +100,14 @@ void App::mainLoop(const double deltaTime)
                 break;
             case SDL_KEYDOWN:
                 switch (event.key.keysym.sym) {
-                    case SDLK_SPACE: world->getECSWorld().singleton<Camera>().get_mut<Camera>()->position.z += 3.0f * deltaTime; break;
-                    case SDLK_LCTRL: world->getECSWorld().singleton<Camera>().get_mut<Camera>()->position.z -= 3.0f * deltaTime; break;
+                    case SDLK_SPACE:
+                        world->getECSWorld().singleton<Camera>().get_mut<Camera>()->position.z
+                            += 3.0f * deltaTime;
+                        break;
+                    case SDLK_LCTRL:
+                        world->getECSWorld().singleton<Camera>().get_mut<Camera>()->position.z
+                            -= 3.0f * deltaTime;
+                        break;
                     default: break;
                 }
                 break;

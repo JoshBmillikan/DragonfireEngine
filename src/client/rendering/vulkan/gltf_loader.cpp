@@ -14,6 +14,9 @@
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <meshoptimizer.h>
 #include <physfs.h>
 #include <re2/re2.h>
@@ -65,37 +68,79 @@ Model VulkanGltfLoader::load(const char* path)
 {
     loadAsset(path);
     Model out(std::string(asset.meshes[0].name));
-
-    for (auto& mesh : asset.meshes) {
-        uint32_t primitiveId = 0;
-        for (auto& primitive : mesh.primitives) {
-            auto [meshHandle, bounds, fence] = loadPrimitive(primitive, mesh, primitiveId);
-            if (device.waitForFences(fence, true, UINT64_MAX) != vk::Result::eSuccess)
-                SPDLOG_ERROR("Fence wait failed");
-            device.destroy(fence);
-
-            Material* material = Material::DEFAULT;
-            if (primitive.materialIndex.has_value()) {
-                auto& materialInfo = asset.materials[primitive.materialIndex.value()];
-                auto [mat, f] = loadMaterial(materialInfo);
-                material = mat;
-                if (!f.empty()) {
-                    if (device.waitForFences(f.size(), f.data(), true, UINT64_MAX) != vk::Result::eSuccess)
-                        SPDLOG_ERROR("Fence wait failed");
-                    for (const auto fn : f)
-                        device.destroy(fn);
-                }
-            }
-            out.addPrimitive(Model::Primitive{
-                reinterpret_cast<dragonfire::Mesh>(meshHandle),
-                material,
-                bounds,
-                glm::identity<glm::mat4>()
-            });
-            primitiveId++;
+    if (asset.defaultScene.has_value()) {
+        const auto& scene = asset.scenes[asset.defaultScene.value()];
+        if (!scene.nodeIndices.empty()) {
+            for (const auto node : scene.nodeIndices)
+                loadNode(asset.nodes[node], out);
+            return out;
         }
     }
+    for (auto& mesh : asset.meshes)
+        loadMesh(mesh, out);
     return out;
+}
+
+void VulkanGltfLoader::loadMesh(const fastgltf::Mesh& mesh, Model& out, const glm::mat4& transform)
+{
+    uint32_t primitiveId = 0;
+    for (auto& primitive : mesh.primitives) {
+        auto [meshHandle, bounds, fence] = loadPrimitive(primitive, mesh, primitiveId);
+        if (device.waitForFences(fence, true, UINT64_MAX) != vk::Result::eSuccess)
+            SPDLOG_ERROR("Fence wait failed");
+        device.destroy(fence);
+
+        Material* material = Material::DEFAULT;
+        if (primitive.materialIndex.has_value()) {
+            auto& materialInfo = asset.materials[primitive.materialIndex.value()];
+            auto [mat, f] = loadMaterial(materialInfo);
+            material = mat;
+            if (!f.empty()) {
+                if (device.waitForFences(f.size(), f.data(), true, UINT64_MAX) != vk::Result::eSuccess)
+                    SPDLOG_ERROR("Fence wait failed");
+                for (const auto fn : f)
+                    device.destroy(fn);
+            }
+        }
+        out.addPrimitive(Model::Primitive{
+            reinterpret_cast<dragonfire::Mesh>(meshHandle),
+            material,
+            bounds,
+            transform,
+        });
+        primitiveId++;
+    }
+}
+
+template<class... Ts>
+struct Overloaded : Ts... {
+    using Ts::operator()...;
+};
+
+void VulkanGltfLoader::loadNode(const fastgltf::Node& node, Model& out, const glm::mat4& transform)
+{
+    const glm::mat4 mat = std::visit(
+        Overloaded{
+            [&](const fastgltf::Node::TRS& trs) {
+                return transform
+                       * glm::translate(glm::identity<glm::mat4>(), glm::make_vec3(trs.translation.data()))
+                       * glm::toMat4(
+                           glm::quat(trs.rotation[0], trs.rotation[1], trs.rotation[2], trs.rotation[3])
+                       )
+                       * glm::scale(glm::identity<glm::mat4>(), glm::make_vec3(trs.scale.data()));
+            },
+            [&](const fastgltf::Node::TransformMatrix& matrix) {
+                return transform * glm::make_mat4(matrix.data());
+            }
+        },
+        node.transform
+    );
+    if (node.meshIndex.has_value()) {
+        const auto& mesh = asset.meshes[node.meshIndex.value()];
+        loadMesh(mesh, out, mat);
+    }
+    for (const auto child : node.children)
+        loadNode(asset.nodes[child], out, mat);
 }
 
 static void optimizeMesh(
@@ -196,11 +241,6 @@ std::tuple<dragonfire::vulkan::Mesh*, glm::vec4, vk::Fence> VulkanGltfLoader::lo
 
     return {m, bounds, fence};
 }
-
-template<class... Ts>
-struct Overloaded : Ts... {
-    using Ts::operator()...;
-};
 
 static ImageData loadImageData(
     const fastgltf::DataSource& dataSource,
