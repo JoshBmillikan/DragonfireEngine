@@ -47,10 +47,13 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     camera.position = glm::vec3(0.0f, 5.0f, 3.0f);
     const auto& ecs = world->getECSWorld();
     ecs.singleton<Camera>().set(camera);
-    ecs.entity().set([&](Model& m, Transform& transform) {
-        m = std::move(model);
-        transform = t;
-    });
+    for (uint32_t i=0;i<10;i++) {
+        ecs.entity().set([&](Model& m, Transform& transform) {
+            m = model;
+            t.position.x += i * 5.0f;
+            transform = t;
+        });
+    }
 
     struct StaticObject {};
 

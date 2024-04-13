@@ -225,6 +225,7 @@ vulkan::VulkanRenderer::~VulkanRenderer()
         frame.countBuffer.destroy();
         frame.textureIndexBuffer.destroy();
     }
+    Material::DEFAULT.reset();
     pipelineFactory.reset();
     context.device.destroy(descriptorPool);
     descriptorLayoutManager.destroy();

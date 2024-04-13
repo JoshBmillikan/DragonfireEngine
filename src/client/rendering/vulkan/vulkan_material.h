@@ -46,8 +46,8 @@ inline void VulkanMaterial::initDefaultMaterial(
     pipelineInfo.vertexCompShader = "default.vert";
     pipelineInfo.fragmentShader = "default.frag";
     const Pipeline pipeline = pipelineFactory.getOrCreate(pipelineInfo);
-    static VulkanMaterial mat(ids, pipeline);
-    Material::DEFAULT = &mat;
+    const auto mat = std::make_shared<VulkanMaterial>(ids, pipeline);
+    Material::DEFAULT = mat;
 }
 
 }// namespace dragonfire::vulkan

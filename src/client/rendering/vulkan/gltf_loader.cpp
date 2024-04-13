@@ -90,11 +90,11 @@ void VulkanGltfLoader::loadMesh(const fastgltf::Mesh& mesh, Model& out, const gl
             SPDLOG_ERROR("Fence wait failed");
         device.destroy(fence);
 
-        Material* material = Material::DEFAULT;
+        auto material = Material::DEFAULT;
         if (primitive.materialIndex.has_value()) {
             auto& materialInfo = asset.materials[primitive.materialIndex.value()];
             auto [mat, f] = loadMaterial(materialInfo);
-            material = mat;
+            material = std::shared_ptr<Material>(mat);
             if (!f.empty()) {
                 if (device.waitForFences(f.size(), f.data(), true, UINT64_MAX) != vk::Result::eSuccess)
                     SPDLOG_ERROR("Fence wait failed");

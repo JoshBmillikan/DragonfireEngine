@@ -4,6 +4,7 @@
 
 #pragma once
 #include <cstdint>
+#include <memory>
 
 namespace dragonfire {
 struct alignas(16) TextureIds {
@@ -19,7 +20,7 @@ class Material {
     uint32_t pipelineId = 0;
 
 public:
-    static Material* DEFAULT;
+    static std::shared_ptr<Material> DEFAULT;
     Material(const TextureIds& textureIds, const uint32_t pipelineId)
         : textureIds(textureIds), pipelineId(pipelineId)
     {

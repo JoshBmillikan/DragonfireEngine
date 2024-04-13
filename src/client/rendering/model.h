@@ -4,10 +4,10 @@
 
 #pragma once
 #include "core/utility/small_vector.h"
+#include "drawable.h"
 #include "material.h"
 #include <glm/ext/matrix_transform.hpp>
 #include <utility>
-#include "drawable.h"
 
 namespace dragonfire {
 using Mesh = std::uintptr_t;
@@ -20,7 +20,7 @@ public:
 
     Model(std::string name) : name(std::move(name)) {}
 
-    ~Model() override;
+    ~Model() override = default;
     void writeDrawData(Drawables& drawables, const Transform& baseTransform) const override;
 
     class Loader {
@@ -34,11 +34,18 @@ public:
         bool optimizeMeshes = true;
     };
 
-    Model(const Model& other) = delete;
+    Model(const Model& other) : name(other.name), primitives(other.primitives) {}
 
     Model(Model&& other) noexcept : name(std::move(other.name)), primitives(std::move(other.primitives)) {}
 
-    Model& operator=(const Model& other) = delete;
+    Model& operator=(const Model& other)
+    {
+        if (this == &other)
+            return *this;
+        name = other.name;
+        primitives = other.primitives;
+        return *this;
+    }
 
     Model& operator=(Model&& other) noexcept
     {
@@ -60,12 +67,12 @@ public:
 
     struct Primitive {
         Mesh mesh = 0;
-        Material* material = nullptr;
+        std::shared_ptr<Material> material = nullptr;
         glm::vec4 bounds;
         glm::mat4 transform = glm::identity<glm::mat4>();
     };
 
-    void addPrimitive(Primitive&& primitive) { primitives.pushBack(primitive); }
+    void addPrimitive(Primitive&& primitive) { primitives.push_back(primitive); }
 
     const Primitive& operator[](const size_t index) const { return primitives[index]; }
 
@@ -73,7 +80,7 @@ public:
 
 private:
     std::string name;
-    SmallVector<Primitive> primitives;
+    std::vector<Primitive> primitives;
 };
 
 }// namespace dragonfire
