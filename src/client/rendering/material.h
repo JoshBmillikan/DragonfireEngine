@@ -21,6 +21,7 @@ class Material {
 
 public:
     static std::shared_ptr<Material> DEFAULT;
+
     Material(const TextureIds& textureIds, const uint32_t pipelineId)
         : textureIds(textureIds), pipelineId(pipelineId)
     {
