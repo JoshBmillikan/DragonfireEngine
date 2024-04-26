@@ -1,7 +1,7 @@
 {
   "name" : "dragonfireengine",
   "version-string" : "1.0.0",
-  "builtin-baseline" : "000d1bda1ffa95a73e0b40334fa4103d6f4d3d48",
+  "builtin-baseline" : "943c5ef1c8f6b5e6ced092b242c8299caae2ff01",
   "dependencies" : [ {
     "name" : "nlohmann-json",
     "version>=" : "3.11.3"
