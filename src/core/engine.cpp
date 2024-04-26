@@ -82,7 +82,7 @@ void Engine::init()
 {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_HAPTIC | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
         crash("SDL init failed: {}", SDL_GetError());
-    crashOnException([=] { File::init(argc, argv); });
+    crashOnException([this] { File::init(argc, argv); });
     parseCommandLine();
     if (cli["mount"].count() > 0) {
         for (auto& opt : cli["mount"].as<std::vector<std::string>>())

@@ -11,6 +11,7 @@ find_package(flecs CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LuaJIT REQUIRED IMPORTED_TARGET luajit)
+find_package(re2 CONFIG REQUIRED)
 
 add_library(dragonfire-core STATIC
         engine.cpp
