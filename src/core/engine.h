@@ -4,9 +4,9 @@
 
 #pragma once
 #include "world/game_world.h"
-#include <sol/sol.hpp>
 #include <cxxopts.hpp>
 #include <functional>
+#include <sol/sol.hpp>
 
 namespace dragonfire {
 
@@ -15,10 +15,9 @@ public:
     Engine(
         bool remote,
         int argc,
-        char** argv,
-        std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
-        = [](cxxopts::OptionAdder&& it) { return it; }
+        char** argv
     );
+    virtual void init();
     virtual ~Engine();
     void run();
 
@@ -36,7 +35,12 @@ public:
     sol::state lua;
 
 protected:
+    int argc;
+    char** argv;
     virtual void mainLoop(double deltaTime) = 0;
+
+    virtual cxxopts::OptionAdder getExtraCliOptions(cxxopts::OptionAdder&& options) { return options; }
+
     cxxopts::ParseResult cli;
     std::unique_ptr<GameWorld> world;
 
@@ -44,11 +48,7 @@ private:
     static Engine* INSTANCE;
     bool running = false;
 
-    void parseCommandLine(
-        int argc,
-        char** argv,
-        std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
-    );
+    void parseCommandLine();
 };
 
 }// namespace dragonfire

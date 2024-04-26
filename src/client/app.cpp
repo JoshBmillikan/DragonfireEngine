@@ -12,17 +12,11 @@
 
 namespace dragonfire {
 
-static cxxopts::OptionAdder extraCommands(cxxopts::OptionAdder&& adder)
-{
-    return adder(
-        "v,vulkan-validation",
-        "Enable vulkan validation layers",
-        cxxopts::value<bool>()->default_value("false")
-    );
-}
+App::App(const int argc, char** const argv) : Engine(false, argc, argv) {}
 
-App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCommands)
+void App::init()
 {
+    Engine::init();
     try {
         Config::get().loadJsonFile("config/config.json");
     }
@@ -47,7 +41,7 @@ App::App(const int argc, char** const argv) : Engine(false, argc, argv, extraCom
     camera.position = glm::vec3(0.0f, 5.0f, 3.0f);
     const auto& ecs = world->getECSWorld();
     ecs.singleton<Camera>().set(camera);
-    for (uint32_t i=0;i<10;i++) {
+    for (uint32_t i = 0; i < 10; i++) {
         ecs.entity().set([&](Model& m, Transform& transform) {
             m = model;
             t.position.x += i * 5.0f;
@@ -128,6 +122,15 @@ void App::mainLoop(const double deltaTime)
     ImGui::Text("Model count: %d", renderer->getDrawCount());
     ImGui::End();
     renderer->render(*world->getECSWorld().singleton<Camera>().get<Camera>());
+}
+
+cxxopts::OptionAdder App::getExtraCliOptions(cxxopts::OptionAdder&& options)
+{
+    return options(
+        "v,vulkan-validation",
+        "Enable vulkan validation layers",
+        cxxopts::value<bool>()->default_value("false")
+    );
 }
 
 }// namespace dragonfire

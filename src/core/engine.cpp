@@ -71,16 +71,19 @@ static void mountDir(const std::string& str)
 Engine::Engine(
     const bool remote,
     const int argc,
-    char** argv,
-    std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
+    char** argv
 )
-    : remote(remote)
+    : remote(remote), argc(argc), argv(argv)
 {
     INSTANCE = this;
+}
+
+void Engine::init()
+{
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_HAPTIC | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
         crash("SDL init failed: {}", SDL_GetError());
     crashOnException([=] { File::init(argc, argv); });
-    parseCommandLine(argc, argv, std::move(extraCli));
+    parseCommandLine();
     if (cli["mount"].count() > 0) {
         for (auto& opt : cli["mount"].as<std::vector<std::string>>())
             mountDir(opt);
@@ -118,15 +121,11 @@ void Engine::run()
     });
 }
 
-void Engine::parseCommandLine(
-    const int argc,
-    char** argv,
-    std::function<cxxopts::OptionAdder(cxxopts::OptionAdder&&)>&& extraCli
-)
+void Engine::parseCommandLine()
 {
     cxxopts::Options options(APP_NAME, "A voxel game engine");
     auto adder = options.add_options();
-    extraCli(std::move(adder))("h,help", "Print usage")(
+    getExtraCliOptions(std::move(adder))("h,help", "Print usage")(
         "l,log",
         "Log level [trace, debug, info, warn, err, critical, off]",
         cxxopts::value<spdlog::level::level_enum>()->default_value("info")
