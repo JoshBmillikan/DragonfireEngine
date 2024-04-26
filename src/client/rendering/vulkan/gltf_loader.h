@@ -11,7 +11,7 @@
 #include "staging_buffer.h"
 #include "texture.h"
 
-#include <fastgltf/parser.hpp>
+#include <fastgltf/core.hpp>
 #include <functional>
 
 namespace dragonfire::vulkan {

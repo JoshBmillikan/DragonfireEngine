@@ -41,7 +41,7 @@ target_link_libraries(dragonfire-core PUBLIC SDL2::SDL2 nlohmann_json::nlohmann_
         $<IF:$<TARGET_EXISTS:PhysFS::PhysFS>,PhysFS::PhysFS,PhysFS::PhysFS-static>
         magic_enum::magic_enum GameNetworkingSockets::shared unordered_dense::unordered_dense
         $<IF:$<TARGET_EXISTS:flecs::flecs>,flecs::flecs,flecs::flecs_static> FastNoise sol2::sol2 PkgConfig::LuaJIT)
-target_compile_definitions(dragonfire-core PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
+target_compile_definitions(dragonfire-core PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_ENABLE_EXPERIMENTAL)
 
 add_executable(core-tests utility/frame_allocator.test.cpp
         utility/small_vector.test.cpp)

@@ -120,7 +120,7 @@ void VulkanGltfLoader::loadNode(const fastgltf::Node& node, Model& out, const gl
 {
     const glm::mat4 mat = std::visit(
         Overloaded{
-            [&](const fastgltf::Node::TRS& trs) {
+            [&](const fastgltf::TRS& trs) {
                 return transform
                        * glm::translate(glm::identity<glm::mat4>(), glm::make_vec3(trs.translation.data()))
                        * glm::toMat4(
@@ -387,8 +387,8 @@ void VulkanGltfLoader::loadAsset(const char* path)
                           | fastgltf::Options::DecomposeNodeMatrices;
     const auto type = determineGltfFileType(&buffer);
     asset = std::move(checkGltf(
-        type == fastgltf::GltfType::glTF ? parser.loadGLTF(&buffer, PHYSFS_getRealDir(path), opts)
-                                         : parser.loadBinaryGLTF(&buffer, PHYSFS_getRealDir(path), opts)
+        type == fastgltf::GltfType::glTF ? parser.loadGltf(&buffer, PHYSFS_getRealDir(path), opts)
+                                         : parser.loadGltfBinary(&buffer, PHYSFS_getRealDir(path), opts)
     ));
     SPDLOG_TRACE("Loaded asset file \"{}\"", path);
 }
