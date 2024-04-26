@@ -1,0 +1,64 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 27,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-vcpkg",
+      "displayName": "Ninja vcpkg",
+      "generator": "Ninja",
+      "toolchainFile": "${sourceDir}/external/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "hidden": true
+    },
+    {
+      "name": "ninja-debug",
+      "displayName": "Ninja Debug",
+      "hidden": false,
+      "inherits": ["ninja-vcpkg"],
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release",
+      "hidden": false,
+      "inherits": ["ninja-vcpkg"],
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "ninja-asan",
+      "displayName": "Ninja with Address Sanitizer",
+      "inherits": ["ninja-debug"],
+      "cacheVariables": {
+        "SANITIZE": "ON"
+      },
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "ninja-debug",
+      "displayName": "Debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "release",
+      "configurePreset": "ninja-release",
+      "displayName": "Release",
+      "configuration": "Release"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "ninja-asan",
+      "displayName": "Sanitize",
+      "configuration": "Debug"
+    }
+  ]
+}

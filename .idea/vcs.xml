@@ -6,7 +6,7 @@
     <mapping directory="$PROJECT_DIR$/external/Jolt" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/external/SDL" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/external/imgui" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/external/re2" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/external/sol2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/external/vcpkg" vcs="Git" />
   </component>
 </project>
