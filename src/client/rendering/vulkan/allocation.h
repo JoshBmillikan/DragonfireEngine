@@ -57,11 +57,27 @@ class Image final : public GpuAllocation {
     vk::Image image;
     vk::Format format{};
     vk::Extent3D extent{};
+    vk::ImageLayout layout{};
 
 public:
     Image() = default;
 
     [[nodiscard]] vk::Format getFormat() const { return format; }
+
+    [[nodiscard]] vk::ImageLayout getLayout() const { return layout; }
+
+    void transitionLayout(
+        vk::CommandBuffer cmd,
+        vk::ImageLayout newLayout,
+        vk::AccessFlags srcStage,
+        vk::AccessFlags dstStage,
+        vk::PipelineStageFlags pipelineStart,
+        vk::PipelineStageFlags pipelineEnd,
+        vk::ImageAspectFlags imageAspect = vk::ImageAspectFlagBits::eColor,
+        uint32_t baseMipLevel = 0,
+        uint32_t levelCount = 1,
+        uint32_t baseArrayLayer = 0,
+        uint32_t layerCount = 1);
 
     ~Image() override { destroy(); }
 

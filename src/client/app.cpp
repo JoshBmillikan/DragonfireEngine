@@ -24,8 +24,8 @@ void App::init()
         spdlog::error("Failed to load config file: {}", e.what());
     }
 
-    renderer
-        = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(cli["vulkan-validation"].as<bool>()));
+    const bool vsync = cli["vulkan-validation"].as<bool>();
+    renderer = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(vsync));
     auto loader = renderer->getModelLoader();
     auto model = loader->load("assets/models/bunny.glb");
     auto floor = loader->load("assets/models/floor.glb");

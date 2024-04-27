@@ -83,6 +83,36 @@ Buffer& Buffer::operator=(Buffer&& other) noexcept
     return *this;
 }
 
+void Image::transitionLayout(
+    const vk::CommandBuffer cmd,
+    const vk::ImageLayout newLayout,
+    const vk::AccessFlags srcStage,
+    const vk::AccessFlags dstStage,
+    const vk::PipelineStageFlags pipelineStart,
+    const vk::PipelineStageFlags pipelineEnd,
+    const vk::ImageAspectFlags imageAspect,
+    const uint32_t baseMipLevel,
+    const uint32_t levelCount,
+    const uint32_t baseArrayLayer,
+    const uint32_t layerCount
+)
+{
+    vk::ImageMemoryBarrier barrier{};
+    barrier.image = image;
+    barrier.srcAccessMask = srcStage;
+    barrier.dstAccessMask = dstStage;
+    barrier.oldLayout = layout;
+    barrier.newLayout = newLayout;
+    barrier.subresourceRange.aspectMask = imageAspect;
+    barrier.subresourceRange.baseMipLevel = baseMipLevel;
+    barrier.subresourceRange.levelCount = levelCount;
+    barrier.subresourceRange.baseArrayLayer = baseArrayLayer;
+    barrier.subresourceRange.layerCount = layerCount;
+
+    cmd.pipelineBarrier(pipelineStart, pipelineEnd, {}, {}, {}, barrier);
+    layout = newLayout;
+}
+
 void Image::destroy() noexcept
 {
     if (allocator)
@@ -211,6 +241,7 @@ Image GpuAllocator::allocate(
     image.allocator = allocator;
     image.format = createInfo.format;
     image.extent = createInfo.extent;
+    image.layout = createInfo.initialLayout;
 
     if (allocationName)
         vmaSetAllocationName(allocator, image.allocation, allocationName);

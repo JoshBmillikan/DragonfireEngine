@@ -35,6 +35,25 @@ static vk::Format getDepthFormat(const vk::PhysicalDevice physicalDevice)
     crash("No valid depth image format found");
 }
 
+static void transitionDepthBuffer(vulkan::Image& depthBuffer, const vk::CommandBuffer cmd, const vk::Queue q)
+{
+    cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    depthBuffer.transitionLayout(
+        cmd,
+        vk::ImageLayout::eDepthAttachmentOptimal,
+        vk::AccessFlagBits::eNone,
+        vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eEarlyFragmentTests,
+        vk::ImageAspectFlagBits::eDepth
+    );
+    cmd.end();
+    vk::SubmitInfo s;
+    s.commandBufferCount = 1;
+    s.pCommandBuffers = &cmd;
+    q.submit(s);
+}
+
 vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     : BaseRenderer(SDL_WINDOW_VULKAN, ImGui_ImplVulkan_NewFrame),
       maxDrawCount(Config::get().getInt("maxDrawCount").value_or(1 << 14))
@@ -120,6 +139,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
             uboOffset,
             descriptorLayoutManager
         );
+    transitionDepthBuffer(depthBuffer, frames[0].cmd, context.queues.graphics);
     presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
     initImGui();
 }
@@ -343,6 +363,7 @@ void vulkan::VulkanRenderer::mainPass()
 
 void vulkan::VulkanRenderer::beginRendering()
 {
+    const auto& frame = getCurrentFrame();
     transitionImageLayout(
         swapchain.currentImage(),
         vk::ImageLayout::eUndefined,
@@ -363,9 +384,8 @@ void vulkan::VulkanRenderer::beginRendering()
         color.resolveMode = vk::ResolveModeFlagBits::eNone;
     }
     else {
-        transitionImageLayout(
-            msaaImage,
-            vk::ImageLayout::eUndefined,
+        msaaImage.transitionLayout(
+            frame.cmd,
             vk::ImageLayout::eColorAttachmentOptimal,
             vk::AccessFlagBits::eNone,
             vk::AccessFlagBits::eColorAttachmentWrite,
@@ -393,7 +413,7 @@ void vulkan::VulkanRenderer::beginRendering()
     renderingInfo.layerCount = 1;
     renderingInfo.renderArea = vk::Rect2D(vk::Offset2D{}, swapchain.getExtent());
 
-    getCurrentFrame().cmd.beginRendering(renderingInfo);
+    frame.cmd.beginRendering(renderingInfo);
 }
 
 void vulkan::VulkanRenderer::waitForLastFrame()
