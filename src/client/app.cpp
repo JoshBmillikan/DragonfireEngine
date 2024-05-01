@@ -27,9 +27,9 @@ void App::init()
     const bool vsync = cli["vulkan-validation"].as<bool>();
     renderer = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(vsync));
     auto loader = renderer->getModelLoader();
-    auto model = loader->load("assets/models/bunny.glb");
-    auto floor = loader->load("assets/models/floor.glb");
-    loader.reset();
+    // auto model = loader->load("assets/models/bunny.glb");
+    // auto floor = loader->load("assets/models/floor.glb");
+    assetRegistry.loadDirectory("assets/models", loader.get());
     SDL_Window* window = renderer->getWindow();
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
@@ -42,8 +42,8 @@ void App::init()
     const auto& ecs = world->getECSWorld();
     ecs.singleton<Camera>().set(camera);
     for (uint32_t i = 0; i < 10; i++) {
-        ecs.entity().set([&](Model& m, Transform& transform) {
-            m = model;
+        ecs.entity().set([&](AssetRef<Model>& m, Transform& transform) {
+            m = assetRegistry.get<Model>("stanford-bunny");
             t.position.x += i * 5.0f;
             transform = t;
         });
@@ -52,14 +52,16 @@ void App::init()
     struct StaticObject {};
 
     ecs.entity()
-        .set([&](Model& m, Transform& transform) {
-            m = std::move(floor);
+        .set([&](AssetRef<Model>& m, Transform& transform) {
+            m = assetRegistry.get<Model>("Cube");
             transform = Transform();
         })
         .add<StaticObject>();
-    ecs.system<const Model, const Transform>()
+    ecs.system<const AssetRef<Model>, const Transform>()
         .kind(flecs::PostUpdate)
-        .each([&](const Model& m, const Transform& transform) { renderer->addDrawable(&m, transform); });
+        .each([&](const AssetRef<Model>& m, const Transform& transform) {
+            renderer->addDrawable(m, transform);
+        });
 
     ecs.system<Transform>().without<StaticObject>().each([](const flecs::iter& it, size_t, Transform& tr) {
         tr.rotation = glm::slerp(
@@ -73,6 +75,7 @@ void App::init()
 App::~App()
 {
     world.reset();
+    assetRegistry.clear();
     renderer.reset();
     try {
         PHYSFS_mkdir("config");

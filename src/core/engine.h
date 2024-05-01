@@ -5,7 +5,7 @@
 #pragma once
 #include "world/game_world.h"
 #include <cxxopts.hpp>
-#include <functional>
+#include "asset.h"
 #include <sol/sol.hpp>
 
 namespace dragonfire {
@@ -38,6 +38,7 @@ protected:
     int argc;
     char** argv;
     virtual void mainLoop(double deltaTime) = 0;
+    AssetRegistry assetRegistry;
 
     virtual cxxopts::OptionAdder getExtraCliOptions(cxxopts::OptionAdder&& options) { return options; }
 

@@ -35,6 +35,8 @@ add_library(dragonfire-core STATIC
         world/transform.h
         world/game_world.cpp
         world/game_world.h
+        asset.cpp
+        asset.h
 )
 target_link_libraries(dragonfire-core PUBLIC SDL2::SDL2 nlohmann_json::nlohmann_json fmt::fmt
         glm::glm spdlog::spdlog Jolt cxxopts::cxxopts re2::re2

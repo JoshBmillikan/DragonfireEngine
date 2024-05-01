@@ -20,39 +20,8 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace dragonfire {
 
-static vk::Format getDepthFormat(const vk::PhysicalDevice physicalDevice)
-{
-    constexpr std::array possibleFormats = {
-        vk::Format::eD32Sfloat,
-        vk::Format::eD32SfloatS8Uint,
-        vk::Format::eD24UnormS8Uint,
-    };
-    for (const vk::Format fmt : possibleFormats) {
-        auto props = physicalDevice.getFormatProperties(fmt);
-        if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
-            return fmt;
-    }
-    crash("No valid depth image format found");
-}
-
-static void transitionDepthBuffer(vulkan::Image& depthBuffer, const vk::CommandBuffer cmd, const vk::Queue q)
-{
-    cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-    depthBuffer.transitionLayout(
-        cmd,
-        vk::ImageLayout::eDepthAttachmentOptimal,
-        vk::AccessFlagBits::eNone,
-        vk::AccessFlagBits::eDepthStencilAttachmentWrite,
-        vk::PipelineStageFlagBits::eTopOfPipe,
-        vk::PipelineStageFlagBits::eEarlyFragmentTests,
-        vk::ImageAspectFlagBits::eDepth
-    );
-    cmd.end();
-    vk::SubmitInfo s;
-    s.commandBufferCount = 1;
-    s.pCommandBuffers = &cmd;
-    q.submit(s);
-}
+static vk::Format getDepthFormat(vk::PhysicalDevice physicalDevice);
+static void transitionDepthBuffer(vulkan::Image& depthBuffer, vk::CommandBuffer cmd, vk::Queue q);
 
 vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     : BaseRenderer(SDL_WINDOW_VULKAN, ImGui_ImplVulkan_NewFrame),
@@ -101,7 +70,7 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     );
     textureRegistry = std::make_unique<TextureRegistry>(context, allocator);
 
-    vk::DescriptorPoolSize sizes[]
+    const vk::DescriptorPoolSize sizes[]
         = {{vk::DescriptorType::eUniformBuffer, 16},
            {vk::DescriptorType::eCombinedImageSampler, maxDrawCount},
            {vk::DescriptorType::eStorageBuffer, 64}};
@@ -142,6 +111,40 @@ vulkan::VulkanRenderer::VulkanRenderer(bool enableValidation)
     transitionDepthBuffer(depthBuffer, frames[0].cmd, context.queues.graphics);
     presentThread = std::jthread(std::bind_front(&VulkanRenderer::present, this));
     initImGui();
+}
+
+vk::Format getDepthFormat(const vk::PhysicalDevice physicalDevice)
+{
+    constexpr std::array possibleFormats = {
+        vk::Format::eD32Sfloat,
+        vk::Format::eD32SfloatS8Uint,
+        vk::Format::eD24UnormS8Uint,
+    };
+    for (const vk::Format fmt : possibleFormats) {
+        auto props = physicalDevice.getFormatProperties(fmt);
+        if (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+            return fmt;
+    }
+    crash("No valid depth image format found");
+}
+
+void transitionDepthBuffer(vulkan::Image& depthBuffer, const vk::CommandBuffer cmd, const vk::Queue q)
+{
+    cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    depthBuffer.transitionLayout(
+        cmd,
+        vk::ImageLayout::eDepthAttachmentOptimal,
+        vk::AccessFlagBits::eNone,
+        vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eEarlyFragmentTests,
+        vk::ImageAspectFlagBits::eDepth
+    );
+    cmd.end();
+    vk::SubmitInfo s;
+    s.commandBufferCount = 1;
+    s.pCommandBuffers = &cmd;
+    q.submit(s);
 }
 
 void vulkan::VulkanRenderer::setVsync(const bool vsync)
@@ -745,7 +748,7 @@ void vulkan::VulkanRenderer::Frame::createDescriptorSets(
     frameBindings[2].descriptorType = vk::DescriptorType::eCombinedImageSampler;
     frameBindings[2].stageFlags = vk::ShaderStageFlagBits::eFragment;
 
-    std::array bindlessIndices = {2ul};
+    std::array<uint64_t, 1> bindlessIndices = {2};
 
     setLayouts.pushBack(descriptorLayoutManager.createBindlessLayout(
         frameBindings,
@@ -870,4 +873,5 @@ void vulkan::VulkanRenderer::Frame::writeDescriptorsSets(
 
     device.updateDescriptorSets(writes, {});
 }
+
 }// namespace dragonfire

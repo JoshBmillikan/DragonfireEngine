@@ -12,6 +12,10 @@
 #include <spdlog/spdlog.h>
 
 namespace dragonfire {
+
+static SDL_Window* initWindow(int windowFlags, spdlog::logger* logger);
+static void initImGui();
+
 BaseRenderer::BaseRenderer()
 {
     logger = spdlog::get("Rendering");
@@ -21,15 +25,31 @@ BaseRenderer::BaseRenderer()
     }
 }
 
-BaseRenderer::BaseRenderer(int windowFlags, void (*imguiRenderNewFrameCallback)()) : BaseRenderer()
+BaseRenderer::BaseRenderer(const int windowFlags, void (*imguiRenderNewFrameCallback)()) : BaseRenderer()
 {
     this->imguiRenderNewFrameCallback = imguiRenderNewFrameCallback;
+
+    window = initWindow(windowFlags, logger.get());
+    if (window == nullptr)
+        crash("Failed to create window: {}", SDL_GetError());
+    initImGui();
+}
+
+BaseRenderer::BaseRenderer(SDL_Window* window, void (*imguiRenderNewFrameCallback)()) : BaseRenderer()
+{
+    this->window = window;
+    this->imguiRenderNewFrameCallback = imguiRenderNewFrameCallback;
+    initImGui();
+}
+
+SDL_Window* initWindow(int windowFlags, spdlog::logger* logger)
+{
     const auto& cfg = Config::get();
     switch (const int64_t mode = cfg.getInt("windowMode").value_or(INT64_MAX)) {
         case 1: windowFlags |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MOUSE_CAPTURE; break;
         case 2:
             windowFlags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_MOUSE_CAPTURE;
-            break;
+        break;
         default: SPDLOG_LOGGER_ERROR(logger, "Invalid window mode {}", mode);
         case INT64_MAX: SPDLOG_LOGGER_WARN(logger, "Window mode not set, running in windowed mode");
         case 0: windowFlags |= SDL_WINDOW_RESIZABLE; break;
@@ -47,7 +67,7 @@ BaseRenderer::BaseRenderer(int windowFlags, void (*imguiRenderNewFrameCallback)(
         height = std::min(int(cfg.getInt("resolutionY").value_or(dm.h / 2)), dm.h);
     }
 
-    window = SDL_CreateWindow(
+    SDL_Window* window = SDL_CreateWindow(
         APP_DISPLAY_NAME,
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
@@ -55,10 +75,20 @@ BaseRenderer::BaseRenderer(int windowFlags, void (*imguiRenderNewFrameCallback)(
         height,
         windowFlags
     );
-    if (window == nullptr)
-        crash("SDL failed to create window: {}", SDL_GetError());
-    logger->info("Created window of size {}x{}", width, height);
-    initImGui();
+    if (window)
+        logger->info("Created window of size {}x{}", width, height);
+    return window;
+}
+
+void initImGui()
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    (void) io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;// Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
+    ImGui::StyleColorsDark();
 }
 
 BaseRenderer::~BaseRenderer() noexcept
@@ -110,17 +140,6 @@ void BaseRenderer::endFrame()
     drawables.clear();
     frameCount++;
     ImGui::EndFrame();
-}
-
-void BaseRenderer::initImGui()
-{
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    (void) io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;// Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
-    ImGui::StyleColorsDark();
 }
 
 }// namespace dragonfire

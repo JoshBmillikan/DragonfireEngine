@@ -63,20 +63,26 @@ glm::vec4 computeBounds(const Vertex* vertices, const uint32_t vertexCount)
     return out;
 }
 
-Model VulkanGltfLoader::load(const char* path)
+std::span<const char*> VulkanGltfLoader::acceptedFileExtensions()
+{
+    static std::array exts = {".gltf", ".glb"};
+    return exts;
+}
+
+Model* VulkanGltfLoader::load(const char* path)
 {
     loadAsset(path);
-    Model out(std::string(asset.meshes[0].name));
+    Model* out = new Model(std::string(asset.meshes[0].name));
     if (asset.defaultScene.has_value()) {
         const auto& scene = asset.scenes[asset.defaultScene.value()];
         if (!scene.nodeIndices.empty()) {
             for (const auto node : scene.nodeIndices)
-                loadNode(asset.nodes[node], out);
+                loadNode(asset.nodes[node], *out);
             return out;
         }
     }
     for (auto& mesh : asset.meshes)
-        loadMesh(mesh, out);
+        loadMesh(mesh, *out);
     return out;
 }
 

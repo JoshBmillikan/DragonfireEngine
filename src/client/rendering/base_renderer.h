@@ -16,12 +16,7 @@ public:
     BaseRenderer();
     BaseRenderer(int windowFlags, void (*imguiRenderNewFrameCallback)());
 
-    explicit BaseRenderer(SDL_Window* window, void (*imguiRenderNewFrameCallback)()) : BaseRenderer()
-    {
-        this->window = window;
-        this->imguiRenderNewFrameCallback = imguiRenderNewFrameCallback;
-        initImGui();
-    }
+    explicit BaseRenderer(SDL_Window* window, void (*imguiRenderNewFrameCallback)());
 
     [[nodiscard]] SDL_Window* getWindow() const { return window; }
 
@@ -52,8 +47,6 @@ private:
     void (*imguiRenderNewFrameCallback)() = nullptr;
     uint64_t frameCount = 0;
     Drawable::Drawables drawables;
-
-    static void initImGui();
 };
 
 }// namespace dragonfire

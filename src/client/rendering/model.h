@@ -3,40 +3,40 @@
 //
 
 #pragma once
-#include "core/utility/small_vector.h"
 #include "drawable.h"
 #include "material.h"
+#include <core/asset.h>
 #include <glm/ext/matrix_transform.hpp>
 #include <utility>
 
 namespace dragonfire {
 using Mesh = std::uintptr_t;
 
-class Model : public Drawable {
+class Model : public Asset, public Drawable {
     friend class Loader;
 
 public:
     Model() = default;
 
-    Model(std::string name) : name(std::move(name)) {}
+    Model(const std::string& name) { this->name = name; }
 
     ~Model() override = default;
     void writeDrawData(Drawables& drawables, const Transform& baseTransform) const override;
 
-    class Loader {
+    class Loader : public AssetLoader {
     public:
-        virtual ~Loader() = default;
-        virtual Model load(const char* path) = 0;
-
         void setOptimize(const bool optimize) { optimizeMeshes = optimize; }
 
     protected:
         bool optimizeMeshes = true;
     };
 
-    Model(const Model& other) : name(other.name), primitives(other.primitives) {}
+    Model(const Model& other) : Asset(static_cast<Asset&>(*this)), primitives(other.primitives) {}
 
-    Model(Model&& other) noexcept : name(std::move(other.name)), primitives(std::move(other.primitives)) {}
+    Model(Model&& other) noexcept
+        : Asset(static_cast<Asset&&>(*this)), primitives(std::move(other.primitives))
+    {
+    }
 
     Model& operator=(const Model& other)
     {
@@ -63,8 +63,6 @@ public:
         const glm::mat4& transform = glm::identity<glm::mat4>()
     );
 
-    [[nodiscard]] const std::string& getName() const { return name; }
-
     struct Primitive {
         Mesh mesh = 0;
         std::shared_ptr<Material> material = nullptr;
@@ -79,7 +77,6 @@ public:
     [[nodiscard]] size_t primitiveCount() const { return primitives.size(); }
 
 private:
-    std::string name;
     std::vector<Primitive> primitives;
 };
 

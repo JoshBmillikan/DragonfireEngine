@@ -27,8 +27,8 @@ public:
         std::function<void(Texture*)>&& descriptorUpdateCallback
     );
     ~VulkanGltfLoader() override = default;
-
-    Model load(const char* path) override;
+    std::span<const char*> acceptedFileExtensions() override;
+    Model* load(const char* path) override;
     VulkanGltfLoader(const VulkanGltfLoader& other) = delete;
     VulkanGltfLoader(VulkanGltfLoader&& other) noexcept = delete;
     VulkanGltfLoader& operator=(const VulkanGltfLoader& other) = delete;
