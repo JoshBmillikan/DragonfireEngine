@@ -105,9 +105,9 @@ public:
     auto operator<=>(const AssetRef& other) const { return entry <=> (other.entry); }
 };
 
-class AssetRegistry {
+class AssetManager {
 public:
-    AssetRegistry() = default;
+    AssetManager() = default;
 
     template<typename T>
         requires std::is_base_of_v<Asset, T>
@@ -125,12 +125,12 @@ public:
     void destroyAsset(std::string_view id);
     void clear();
 
-    ~AssetRegistry() { clear(); }
+    ~AssetManager() { clear(); }
 
-    AssetRegistry(const AssetRegistry& other) = delete;
-    AssetRegistry(AssetRegistry&& other) noexcept;
-    AssetRegistry& operator=(const AssetRegistry& other) = delete;
-    AssetRegistry& operator=(AssetRegistry&& other) noexcept;
+    AssetManager(const AssetManager& other) = delete;
+    AssetManager(AssetManager&& other) noexcept;
+    AssetManager& operator=(const AssetManager& other) = delete;
+    AssetManager& operator=(AssetManager&& other) noexcept;
 
 private:
     mutable std::shared_mutex mutex;

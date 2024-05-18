@@ -49,7 +49,7 @@ SDL_Window* initWindow(int windowFlags, spdlog::logger* logger)
         case 1: windowFlags |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_MOUSE_CAPTURE; break;
         case 2:
             windowFlags |= SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_MOUSE_CAPTURE;
-        break;
+            break;
         default: SPDLOG_LOGGER_ERROR(logger, "Invalid window mode {}", mode);
         case INT64_MAX: SPDLOG_LOGGER_WARN(logger, "Window mode not set, running in windowed mode");
         case 0: windowFlags |= SDL_WINDOW_RESIZABLE; break;
@@ -133,6 +133,13 @@ void BaseRenderer::beginImGuiFrame() const
 BaseRenderer* BaseRenderer::createRenderer(const bool enableVsync)
 {
     return new vulkan::VulkanRenderer(enableVsync);
+}
+
+std::pair<int, int> BaseRenderer::getWindowSize() const noexcept
+{
+    int w, h;
+    SDL_GetWindowSize(window, &w, &h);
+    return {w, h};
 }
 
 void BaseRenderer::endFrame()

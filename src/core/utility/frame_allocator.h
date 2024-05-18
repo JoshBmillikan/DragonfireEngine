@@ -28,7 +28,16 @@ namespace frameAllocator {
      * @param size size of the memory block
      * @return true if the block was freed, false if it was not a pointer to the last allocation
      */
-    bool freeLast(void* ptr, std::size_t size) noexcept;
+    bool freeLast(const void* ptr, std::size_t size) noexcept;
+
+    template<typename T, typename... Args>
+    static T* frameNew(Args... args)
+    {
+        // ReSharper disable once CppDFAMemoryLeak
+        void* ptr = static_cast<T*>(frameAllocator::alloc(sizeof(T)));
+        T* obj = new (ptr) T(std::forward<Args>(args)...);
+        return obj;
+    }
 }// namespace frameAllocator
 
 template<typename T>
@@ -82,4 +91,4 @@ public:
     }
 };
 
-}// namespace raven
+}// namespace dragonfire

@@ -65,8 +65,8 @@ glm::vec4 computeBounds(const Vertex* vertices, const uint32_t vertexCount)
 
 std::span<const char*> VulkanGltfLoader::acceptedFileExtensions()
 {
-    static std::array exts = {".gltf", ".glb"};
-    return exts;
+    static std::array EXTS = {".gltf", ".glb"};
+    return EXTS;
 }
 
 Model* VulkanGltfLoader::load(const char* path)

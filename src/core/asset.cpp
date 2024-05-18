@@ -12,7 +12,7 @@
 
 namespace dragonfire {
 
-void AssetRegistry::loadDirectory(const char* dir, AssetLoader* loader)
+void AssetManager::loadDirectory(const char* dir, AssetLoader* loader)
 {
     assert(dir && loader);
     const auto exts = loader->acceptedFileExtensions();
@@ -51,7 +51,7 @@ void AssetRegistry::loadDirectory(const char* dir, AssetLoader* loader)
     PHYSFS_freeList(ls);
 }
 
-void AssetRegistry::destroyAsset(const std::string_view id)
+void AssetManager::destroyAsset(const std::string_view id)
 {
     std::unique_lock lock(mutex);
     const auto& found = assets.find(id);
@@ -65,7 +65,7 @@ void AssetRegistry::destroyAsset(const std::string_view id)
     found->second.filePath.clear();
 }
 
-void AssetRegistry::clear()
+void AssetManager::clear()
 {
     std::unique_lock lock(mutex);
     for (auto& [name, entry] : assets) {
@@ -78,7 +78,7 @@ void AssetRegistry::clear()
     assets.clear();
 }
 
-AssetRegistry::AssetRegistry(AssetRegistry&& other) noexcept
+AssetManager::AssetManager(AssetManager&& other) noexcept
 {
     if (this != &other) {
         std::scoped_lock lock(mutex, other.mutex);
@@ -86,7 +86,7 @@ AssetRegistry::AssetRegistry(AssetRegistry&& other) noexcept
     }
 }
 
-AssetRegistry& AssetRegistry::operator=(AssetRegistry&& other) noexcept
+AssetManager& AssetManager::operator=(AssetManager&& other) noexcept
 {
     if (this == &other)
         return *this;

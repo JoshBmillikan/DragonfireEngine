@@ -38,7 +38,7 @@ protected:
     int argc;
     char** argv;
     virtual void mainLoop(double deltaTime) = 0;
-    AssetRegistry assetRegistry;
+    AssetManager assetManager;
 
     virtual cxxopts::OptionAdder getExtraCliOptions(cxxopts::OptionAdder&& options) { return options; }
 

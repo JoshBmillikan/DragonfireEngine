@@ -35,6 +35,7 @@ public:
     static BaseRenderer* createRenderer(bool enableVsync);
 
     [[nodiscard]] uint32_t getDrawCount() const noexcept { return drawables.size(); }
+    std::pair<int, int> getWindowSize() const noexcept;
 
 protected:
     std::shared_ptr<spdlog::logger> logger;

@@ -26,13 +26,9 @@ void App::init()
 
     const bool vsync = cli["vulkan-validation"].as<bool>();
     renderer = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(vsync));
-    auto loader = renderer->getModelLoader();
-    // auto model = loader->load("assets/models/bunny.glb");
-    // auto floor = loader->load("assets/models/floor.glb");
-    assetRegistry.loadDirectory("assets/models", loader.get());
-    SDL_Window* window = renderer->getWindow();
-    int w, h;
-    SDL_GetWindowSize(window, &w, &h);
+    const auto loader = renderer->getModelLoader();
+    assetManager.loadDirectory("assets/models", loader.get());
+    auto [w, h] = renderer->getWindowSize();
     auto camera = Camera(45.0f, float(w), float(h), 0.1f, 1000.0f);
 
     world = std::make_unique<GameWorld>();
@@ -43,8 +39,8 @@ void App::init()
     ecs.singleton<Camera>().set(camera);
     for (uint32_t i = 0; i < 10; i++) {
         ecs.entity().set([&](AssetRef<Model>& m, Transform& transform) {
-            m = assetRegistry.get<Model>("stanford-bunny");
-            t.position.x += i * 5.0f;
+            m = assetManager.get<Model>("stanford-bunny");
+            t.position.x += float(i) * 5.0f;
             transform = t;
         });
     }
@@ -53,7 +49,7 @@ void App::init()
 
     ecs.entity()
         .set([&](AssetRef<Model>& m, Transform& transform) {
-            m = assetRegistry.get<Model>("Cube");
+            m = assetManager.get<Model>("Cube");
             transform = Transform();
         })
         .add<StaticObject>();
@@ -75,7 +71,7 @@ void App::init()
 App::~App()
 {
     world.reset();
-    assetRegistry.clear();
+    assetManager.clear();
     renderer.reset();
     try {
         PHYSFS_mkdir("config");
@@ -102,11 +98,11 @@ void App::mainLoop(const double deltaTime)
                 switch (event.key.keysym.sym) {
                     case SDLK_SPACE:
                         world->getECSWorld().singleton<Camera>().get_mut<Camera>()->position.z
-                            += 3.0f * deltaTime;
+                            += 3.0f * float(deltaTime);
                         break;
                     case SDLK_LCTRL:
                         world->getECSWorld().singleton<Camera>().get_mut<Camera>()->position.z
-                            -= 3.0f * deltaTime;
+                            -= 3.0f * float(deltaTime);
                         break;
                     default: break;
                 }

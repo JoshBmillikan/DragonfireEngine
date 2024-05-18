@@ -37,6 +37,8 @@ add_library(dragonfire-core STATIC
         world/game_world.h
         asset.cpp
         asset.h
+        event.cpp
+        event.h
 )
 target_link_libraries(dragonfire-core PUBLIC SDL2::SDL2 nlohmann_json::nlohmann_json fmt::fmt
         glm::glm spdlog::spdlog Jolt cxxopts::cxxopts re2::re2
