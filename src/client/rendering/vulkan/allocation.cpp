@@ -13,7 +13,7 @@ namespace dragonfire::vulkan {
 void* GpuAllocation::map() const
 {
     void* ptr;
-    resultCheck(
+    vk::detail::resultCheck(
         static_cast<vk::Result>(vmaMapMemory(allocator, allocation, &ptr)),
         "Failed to map allocation"
     );
@@ -216,7 +216,7 @@ Buffer GpuAllocator::allocate(
     const VkBufferCreateInfo& create = createInfo;
     VkBuffer b;
     VkResult result = vmaCreateBuffer(allocator, &create, &allocInfo, &b, &buffer.allocation, &buffer.info);
-    resultCheck(static_cast<vk::Result>(result), "VMA failed to allocate buffer");
+    vk::detail::resultCheck(static_cast<vk::Result>(result), "VMA failed to allocate buffer");
     buffer.buffer = b;
     buffer.allocator = allocator;
 
@@ -236,7 +236,7 @@ Image GpuAllocator::allocate(
     const VkImageCreateInfo& create = createInfo;
     VkImage i;
     VkResult result = vmaCreateImage(allocator, &create, &allocInfo, &i, &image.allocation, &image.info);
-    resultCheck(static_cast<vk::Result>(result), "VMA failed to allocate image");
+    vk::detail::resultCheck(static_cast<vk::Result>(result), "VMA failed to allocate image");
     image.image = i;
     image.allocator = allocator;
     image.format = createInfo.format;

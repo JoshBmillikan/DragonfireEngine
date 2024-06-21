@@ -74,7 +74,7 @@ TextureRegistry::TextureRegistry(const Context& ctx, GpuAllocator& allocator)
     allocateInfo.level = vk::CommandBufferLevel::ePrimary;
     allocateInfo.commandPool = pool;
     allocateInfo.commandBufferCount = 1;
-    vk::resultCheck(device.allocateCommandBuffers(&allocateInfo, &cmd), "Failed to allocate command buffer");
+    vk::detail::resultCheck(device.allocateCommandBuffers(&allocateInfo, &cmd), "Failed to allocate command buffer");
 }
 
 TextureRegistry::~TextureRegistry()

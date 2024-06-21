@@ -130,9 +130,9 @@ void BaseRenderer::beginImGuiFrame() const
     ImGui::NewFrame();
 }
 
-BaseRenderer* BaseRenderer::createRenderer(const bool enableVsync)
+BaseRenderer* BaseRenderer::createRenderer(const bool enableValidation)
 {
-    return new vulkan::VulkanRenderer(enableVsync);
+    return new vulkan::VulkanRenderer(enableValidation);
 }
 
 std::pair<int, int> BaseRenderer::getWindowSize() const noexcept

@@ -59,7 +59,7 @@ MeshRegistry::MeshRegistry(const Context& ctx, GpuAllocator& allocator)
     cmdAllocInfo.level = vk::CommandBufferLevel::ePrimary;
     cmdAllocInfo.commandBufferCount = 1;
     cmdAllocInfo.commandPool = pool;
-    vk::resultCheck(device.allocateCommandBuffers(&cmdAllocInfo, &cmd), "Failed to allocate command buffer");
+    vk::detail::resultCheck(device.allocateCommandBuffers(&cmdAllocInfo, &cmd), "Failed to allocate command buffer");
 }
 
 MeshRegistry::~MeshRegistry()

@@ -32,10 +32,10 @@ public:
 
     void beginImGuiFrame() const;
 
-    static BaseRenderer* createRenderer(bool enableVsync);
+    static BaseRenderer* createRenderer(bool enableValidation);
 
     [[nodiscard]] uint32_t getDrawCount() const noexcept { return drawables.size(); }
-    std::pair<int, int> getWindowSize() const noexcept;
+    [[nodiscard]] std::pair<int, int> getWindowSize() const noexcept;
 
 protected:
     std::shared_ptr<spdlog::logger> logger;

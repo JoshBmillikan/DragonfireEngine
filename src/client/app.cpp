@@ -24,8 +24,8 @@ void App::init()
         spdlog::error("Failed to load config file: {}", e.what());
     }
 
-    const bool vsync = cli["vulkan-validation"].as<bool>();
-    renderer = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(vsync));
+    const bool validation = cli["vulkan-validation"].as<bool>();
+    renderer = std::unique_ptr<BaseRenderer>(BaseRenderer::createRenderer(validation));
     const auto loader = renderer->getModelLoader();
     assetManager.loadDirectory("assets/models", loader.get());
     auto [w, h] = renderer->getWindowSize();
