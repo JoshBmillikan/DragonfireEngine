@@ -6,8 +6,8 @@ Demonstrates the use of indirect rending to preform frustum culling directly on 
 example model from https://graphics.stanford.edu/data/3Dscanrep/
 
 ## Building
-Be sure to clone recursively to include git submodules
+1. Clone the repository with ```--recursive``` to include git submodules
 
-Build with the cmake
+2. Install [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-powershell#1---set-up-vcpkg)
 
-```cmake --build --target dragonfire_engine --preset debug```
+3. Build with cmake ```cmake --build --target dragonfire_engine --preset debug```
