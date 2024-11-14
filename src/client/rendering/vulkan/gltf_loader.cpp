@@ -18,7 +18,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <meshoptimizer.h>
 #include <physfs.h>
-#include <re2/re2.h>
+#include <regex>
 #include <spdlog/spdlog.h>
 
 namespace dragonfire::vulkan {
@@ -315,10 +315,10 @@ static ImageData loadImageData(
     );
 }
 
-static RE2 VERTEX_REGEX("vs-([a-zA-Z_0-9]+)", RE2::Quiet);
-static RE2 FRAG_REGEX("fs-([a-zA-Z_0-9]+)", RE2::Quiet);
-static RE2 GEOM_REGEX("geom-([a-zA-Z_0-9]+)", RE2::Quiet);
-static RE2 TESS_REGEX("teseval-([a-zA-Z_0-9]+).*tesctrl=(a-zA-Z_0-9]+)", RE2::Quiet);
+static std::regex VERTEX_REGEX("vs-([a-zA-Z_0-9]+)");
+static std::regex FRAG_REGEX("fs-([a-zA-Z_0-9]+)");
+static std::regex GEOM_REGEX("geom-([a-zA-Z_0-9]+)");
+static std::regex TESS_REGEX("teseval-([a-zA-Z_0-9]+).*tesctrl=(a-zA-Z_0-9]+)");
 
 std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(const fastgltf::Material& material
 )
@@ -341,10 +341,18 @@ std::pair<Material*, SmallVector<vk::Fence>> VulkanGltfLoader::loadMaterial(cons
     pipelineInfo.depthState.minDepthBounds = 0.0f;
     pipelineInfo.depthState.maxDepthBounds = 1.0f;
 
-    RE2::FullMatch(material.name, VERTEX_REGEX, &pipelineInfo.vertexCompShader);
-    RE2::FullMatch(material.name, FRAG_REGEX, &pipelineInfo.fragmentShader);
-    RE2::FullMatch(material.name, GEOM_REGEX, &pipelineInfo.geometryShader);
-    RE2::FullMatch(material.name, TESS_REGEX, &pipelineInfo.tessEvalShader, &pipelineInfo.tessCtrlShader);
+    std::smatch match;
+    const std::string name = std::string(material.name);
+    if (std::regex_match(name, match, VERTEX_REGEX))
+        pipelineInfo.vertexCompShader = match[1].str();
+    if (std::regex_match(name, match, FRAG_REGEX))
+        pipelineInfo.fragmentShader = match[1].str();
+    if (std::regex_match(name, match, GEOM_REGEX))
+        pipelineInfo.geometryShader = match[1].str();
+    if (std::regex_match(name, match, TESS_REGEX)) {
+        pipelineInfo.tessCtrlShader = match[1].str();
+        pipelineInfo.tessEvalShader = match[2].str();
+    }
 
     if (!pipelineInfo.vertexCompShader.empty())
         pipelineInfo.vertexCompShader += ".vert";

@@ -27,7 +27,8 @@ set(VULKAN_SRC
         rendering/vulkan/gltf_loader.h
         rendering/vulkan/vulkan_material.h
         rendering/vulkan/staging_buffer.cpp
-        rendering/vulkan/staging_buffer.h)
+        rendering/vulkan/staging_buffer.h
+)
 add_library(dragonfire-client STATIC
         app.cpp
         app.h

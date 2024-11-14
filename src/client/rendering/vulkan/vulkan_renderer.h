@@ -33,13 +33,6 @@ protected:
 
 private:
     struct Frame {
-        vk::Semaphore renderingSemaphore, presentSemaphore;
-        vk::CommandBuffer cmd;
-        vk::CommandPool pool;
-        vk::DescriptorSet globalDescriptorSet, computeSet, frameSet;
-        Buffer drawData, culledMatrices, commandBuffer, countBuffer, textureIndexBuffer;
-        vk::Fence fence;
-        uint32_t textureBinding = 0;
         Frame() = default;
         Frame(
             const Context& ctx,
@@ -57,7 +50,6 @@ private:
             DescriptorLayoutManager& descriptorLayoutManager,
             uint32_t maxDrawCount
         );
-
         void writeDescriptorsSets(
             vk::Device device,
             uint32_t index,
@@ -65,6 +57,13 @@ private:
             const Buffer& globalUBO,
             vk::DeviceSize uboOffset
         ) const;
+        vk::Semaphore renderingSemaphore, presentSemaphore;
+        vk::CommandBuffer cmd;
+        vk::CommandPool pool;
+        vk::DescriptorSet globalDescriptorSet, computeSet, frameSet;
+        Buffer drawData, culledMatrices, commandBuffer, countBuffer, textureIndexBuffer;
+        vk::Fence fence;
+        uint32_t textureBinding = 0;
     };
 
     Context context;
