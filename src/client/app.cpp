@@ -37,22 +37,18 @@ void App::init()
     camera.position = glm::vec3(0.0f, 5.0f, 3.0f);
     const auto& ecs = world->getECSWorld();
     ecs.singleton<Camera>().set(camera);
-    for (uint32_t i = 0; i < 10; i++) {
-        ecs.entity().set([&](AssetRef<Model>& m, Transform& transform) {
-            m = assetManager.get<Model>("stanford-bunny");
-            t.position.x += float(i) * 5.0f;
-            transform = t;
-        });
+    for (uint32_t i = 0; i < 5; i++) {
+        auto transform = Transform();
+        transform.position.x = -6.0f;
+        transform.position.x += float(i) * 4.0f;
+        transform.rotation = glm::quat(0, 0, 1, 0);
+        ecs.entity().set(transform).set(assetManager.get<Model>("stanford-bunny"));
     }
 
     struct StaticObject {};
 
-    ecs.entity()
-        .set([&](AssetRef<Model>& m, Transform& transform) {
-            m = assetManager.get<Model>("Cube");
-            transform = Transform();
-        })
-        .add<StaticObject>();
+    auto e = ecs.entity().set(Transform()).set(assetManager.get<Model>("Cube"));
+    e = e.add<StaticObject>();
     ecs.system<const AssetRef<Model>, const Transform>()
         .kind(flecs::PostUpdate)
         .each([&](const AssetRef<Model>& m, const Transform& transform) {

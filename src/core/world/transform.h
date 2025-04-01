@@ -13,6 +13,7 @@ struct Transform {
     glm::vec3 scale;
     glm::quat rotation;
 
+    ~Transform() = default;
     Transform(
         const glm::vec3 position = {},
         const glm::vec3 scale = {1.0f, 1.0f, 1.0f},
@@ -27,6 +28,11 @@ struct Transform {
         return glm::translate(glm::identity<glm::mat4>(), position) * glm::toMat4(rotation)
                * glm::scale(glm::identity<glm::mat4>(), scale);
     }
+
+    Transform(const Transform& other) = default;
+    Transform(Transform&& other) noexcept = default;
+    Transform& operator=(const Transform& other) = default;
+    Transform& operator=(Transform&& other) noexcept = default;
 };
 
 }// namespace dragonfire

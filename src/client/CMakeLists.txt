@@ -52,3 +52,4 @@ target_include_directories(dragonfire-client PRIVATE ${Stb_INCLUDE_DIR})
 
 add_executable(${APP_NAME} main.cpp)
 target_link_libraries(${APP_NAME} PRIVATE dragonfire-client SDL2::SDL2main)
+target_link_options(${APP_NAME} PRIVATE "LINKER:-rpath,$ORIGIN")

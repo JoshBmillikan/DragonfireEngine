@@ -1,7 +1,7 @@
 {
   "name" : "dragonfireengine",
   "version-string" : "1.0.0",
-  "builtin-baseline" : "943c5ef1c8f6b5e6ced092b242c8299caae2ff01",
+  "builtin-baseline" : "efb544d5a580c51f270998d6522c08debb1b5769",
   "dependencies" : [ {
     "name" : "nlohmann-json",
     "version>=" : "3.11.3"
@@ -21,9 +21,6 @@
   }, {
     "name" : "fmt",
     "version>=" : "10.1.1"
-  }, {
-    "name" : "physfs",
-    "version>=" : "3.2.0#1"
   }, {
     "name" : "gamenetworkingsockets",
     "version>=" : "1.4.1#1"

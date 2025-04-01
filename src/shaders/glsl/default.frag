@@ -16,7 +16,7 @@ layout (set=0, binding=0) uniform Ubo {
     vec2 resolution;
 }uboData;
 
-layout(std430, set=1, binding=1) buffer TextureData {
+layout(std430, set=1, binding=1) readonly buffer TextureData {
     TextureIndices indices[];
 }textureData;
 
